@@ -14,6 +14,7 @@
 
 
 
+
 typedef struct
 {
     double x;
@@ -417,6 +418,66 @@ std::vector<bool> AMGV3(CSRMatrix &A){
 }
 
 
+
+template <typename T>
+std::vector<bool> AMGV4(CSRMatrix &A){   // non funziona u cazz
+    // initialization of return vector R
+    std::vector<bool> R(A.rows(), 0); // numero righe = numero nodi
+    size_t index = getRandomInit(R.size());
+    bool GoOn = true;
+    std::vector<std::vector<int>> TOTStrongConnections (A.rows(), std::vector<int>(A.rows(), 0));
+    for(int i = 0; i< R.size(); i++){
+        valueStrongConnectionV2<T>(A,i, TOTStrongConnections[i]); 
+    }
+    std::cout<<"Strong connection matrix setted\n"<<std::endl;
+
+    std::vector<int> all_nodes_not_yet_selected(A.rows());
+
+    for(int i = 0; i< R.size(); i++){
+        all_nodes_not_yet_selected[i] = std::accumulate(TOTStrongConnections[i].begin(), TOTStrongConnections[i].end(), 0) -1;
+    }
+
+
+    // init with index the random index
+    while(GoOn)
+    {
+        GoOn == false;
+
+        // step 1:
+        all_nodes_not_yet_selected[index] = 0;
+        TOTStrongConnections[index][index] = 0;
+        for(int i : TOTStrongConnections[index]){
+            if(i){
+                R[i] = 1;
+                for(int j=0; j< R.size(); ++j){
+                    if(TOTStrongConnections[i][j] && all_nodes_not_yet_selected[j])
+                    {
+                        all_nodes_not_yet_selected[j] += TOTStrongConnections[index][j] * 2;
+                        GoOn == true;
+                    }
+                }
+            }
+        }
+
+        auto iii = std::max_element(all_nodes_not_yet_selected.begin(), all_nodes_not_yet_selected.end());
+
+        if (iii != all_nodes_not_yet_selected.end()) {
+            index = std::static_cast<size_t>(*iii);
+        } else {
+            std::cout << "Vector is empty!" << std::endl;
+            break;
+        }
+
+
+    }
+
+    std::cout<< "Ci entro dio"<<std::endl;
+
+    return R;
+    // A.size() is the row number
+}
+
+
 /// @brief this function evaluate the importance measure  of node i-th
 /// @tparam T 
 /// @param NodeToEval correspond to row of matrix A, is the node i-th
@@ -489,7 +550,7 @@ std::vector<T> AMG(CSRMatrix &A){
 int main()
 {    
     TriangularMesh mesh;
-    mesh.import_from_msh("mesh2.msh");
+    mesh.import_from_msh("mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -628,7 +689,7 @@ int main()
     CSRMatrix A(A_temp);
     //CSRMatrix B(B_temp);
     A.copy_from(A_temp);
-    std::vector<bool> result = AMGV3<double>(A); // Specify template type
+    std::vector<bool> result = AMGV4<double>(A); // Specify template type
     std::cout << "Result: ";
     for (const auto &val : result) {
         std::cout << val << " ";
