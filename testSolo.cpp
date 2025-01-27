@@ -422,18 +422,19 @@ std::vector<bool> AMGV3(CSRMatrix &A){
 template <typename T>
 std::vector<bool> AMGV4(CSRMatrix &A){   // non funziona u cazz
     // initialization of return vector R
-    std::vector<bool> R(A.rows(), 0); // numero righe = numero nodi
-    size_t index = getRandomInit(R.size());
+    int nn = A.rows();
+    std::vector<bool> R(nn, 0); // numero righe = numero nodi
+    size_t index = getRandomInit(nn);
     bool GoOn = true;
-    std::vector<std::vector<int>> TOTStrongConnections (A.rows(), std::vector<int>(A.rows(), 0));
-    for(int i = 0; i< R.size(); i++){
+    std::vector<std::vector<int>> TOTStrongConnections (nn, std::vector<int>(nn, 0));
+    for(int i = 0; i< nn; i++){
         valueStrongConnectionV2<T>(A,i, TOTStrongConnections[i]); 
     }
     std::cout<<"Strong connection matrix setted\n"<<std::endl;
 
-    std::vector<int> all_nodes_not_yet_selected(A.rows());
+    std::vector<int> all_nodes_not_yet_selected(nn);
 
-    for(int i = 0; i< R.size(); i++){
+    for(int i = 0; i< nn; i++){
         all_nodes_not_yet_selected[i] = std::accumulate(TOTStrongConnections[i].begin(), TOTStrongConnections[i].end(), 0) -1;
     }
 
@@ -441,40 +442,53 @@ std::vector<bool> AMGV4(CSRMatrix &A){   // non funziona u cazz
     // init with index the random index
     while(GoOn)
     {
-        GoOn == false;
+        GoOn = false;
 
         // step 1:
         all_nodes_not_yet_selected[index] = 0;
         TOTStrongConnections[index][index] = 0;
-        for(int i : TOTStrongConnections[index]){
-            if(i){
+        for(size_t i=0; i< nn; ++i){
+            if(TOTStrongConnections[index][i]  && (i != index) && all_nodes_not_yet_selected[i]){
                 R[i] = 1;
-                for(int j=0; j< R.size(); ++j){
-                    if(TOTStrongConnections[i][j] && all_nodes_not_yet_selected[j])
+                all_nodes_not_yet_selected[i] = 0;
+                for(size_t j=0; j< nn; ++j){
+                    if((TOTStrongConnections[i][j] != 0) && (all_nodes_not_yet_selected[j] != 0))
                     {
-                        all_nodes_not_yet_selected[j] += TOTStrongConnections[index][j] * 2;
-                        GoOn == true;
+                        all_nodes_not_yet_selected[j] += 2;
                     }
                 }
             }
         }
 
-        auto iii = std::max_element(all_nodes_not_yet_selected.begin(), all_nodes_not_yet_selected.end());
+        // auto iii = std::max_element(all_nodes_not_yet_selected.begin(), all_nodes_not_yet_selected.end());
+        int maxx = -1;
+        for(size_t j=0; j< nn; ++j){
+            if(all_nodes_not_yet_selected[j] > maxx){
+                maxx = all_nodes_not_yet_selected[j];
+                index = j;
+            }
+        }
 
-        if (iii != all_nodes_not_yet_selected.end()) {
-            index = std::static_cast<size_t>(*iii);
+
+        if (all_nodes_not_yet_selected[index]) {
+            // std::cout << "Index " << index << std::endl << "Res inter: ";
+            // for(size_t j=0; j< nn; ++j){
+            //     std::cout<< R[j] << " ";
+            // }
+            // std::cout << std::endl << "And inter: ";
+
+            // for(size_t j=0; j< nn; ++j){
+            //     std::cout<< all_nodes_not_yet_selected[j] << " ";
+            // }
+            // std::cout << std::endl;
+            GoOn = true;
         } else {
             std::cout << "Vector is empty!" << std::endl;
             break;
         }
-
-
     }
 
-    std::cout<< "Ci entro dio"<<std::endl;
-
     return R;
-    // A.size() is the row number
 }
 
 
@@ -550,7 +564,7 @@ std::vector<T> AMG(CSRMatrix &A){
 int main()
 {    
     TriangularMesh mesh;
-    mesh.import_from_msh("mesh/mesh2.msh");
+    mesh.import_from_msh("mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -690,11 +704,11 @@ int main()
     //CSRMatrix B(B_temp);
     A.copy_from(A_temp);
     std::vector<bool> result = AMGV4<double>(A); // Specify template type
-    std::cout << "Result: ";
-    for (const auto &val : result) {
-        std::cout << val << " ";
-    }
-    std::cout << std::endl;
+    // std::cout << "Result: ";
+    // for (const auto &val : result) {
+    //     std::cout << val << " ";
+    // }
+    // std::cout << std::endl;
 
     //B.copy_from(B_temp);
     std::cout << "Matrix compressed successfully!"<< std::endl;
