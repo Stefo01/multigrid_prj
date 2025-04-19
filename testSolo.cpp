@@ -432,6 +432,16 @@ std::vector<bool> AMGV4(CSRMatrix &A){   // non funziona u cazz
     }
     std::cout<<"Strong connection matrix setted\n"<<std::endl;
 
+    std::cout<< "\n\nOur strong connection matrix:\n";
+
+    for (int i = 0; i < nn; i++){
+        for (int j = 0; j < nn; j++){
+            std::cout << " " << TOTStrongConnections[i][j] << " ";
+        }
+        std::cout<< "\n";
+    }
+    std::cout << "\n\n";
+
     std::vector<int> all_nodes_not_yet_selected(nn);
 
     for(int i = 0; i< nn; i++){
@@ -471,22 +481,68 @@ std::vector<bool> AMGV4(CSRMatrix &A){   // non funziona u cazz
 
 
         if (all_nodes_not_yet_selected[index]) {
-            // std::cout << "Index " << index << std::endl << "Res inter: ";
-            // for(size_t j=0; j< nn; ++j){
-            //     std::cout<< R[j] << " ";
-            // }
-            // std::cout << std::endl << "And inter: ";
-
-            // for(size_t j=0; j< nn; ++j){
-            //     std::cout<< all_nodes_not_yet_selected[j] << " ";
-            // }
-            // std::cout << std::endl;
             GoOn = true;
         } else {
             std::cout << "Vector is empty!" << std::endl;
             break;
         }
     }
+
+
+    int count_dim_col = 0;
+    for (int i = 0; i< nn; i++){
+        if(R[i] == 0)
+            count_dim_col++;
+
+    }
+
+    std::vector<std::vector<double>> I_k (nn, std::vector<double>(count_dim_col, 0.0));
+
+    int ccc = 0;
+    for (int i = 0; i < nn; i++){
+        if(R[i] == 0){
+            I_k[i][ccc] = 1;
+            ccc++;
+        } else {
+            int tempss = 0;
+            for (int j = 0; j < nn; j++){
+                
+                if ( (TOTStrongConnections[i][j] == 1) && (R[j] == 0) ){
+                    tempss++;
+                    std::cout << "diooo\n";
+
+                }
+            }
+            std::cout<< tempss;
+
+            int tempss2 = 0;
+            for (int j = 0; j < nn; j++) {
+                if (TOTStrongConnections[i][j] == 1 ){
+                    tempss2++;
+                    if (R[j] == 0)
+                        if(tempss == 1)
+                            I_k[i][tempss2] = 0.8;
+                        else
+                            I_k[i][tempss2] = 1 / tempss;
+
+                }
+            }
+        }
+    }
+
+    std::cout<< "\n\nI_k matrix:\n";
+
+    for (int i = 0; i < nn; i++){
+        for (int j = 0; j < count_dim_col; j++){
+            std::cout << " " << I_k[i][j] << " ";
+        }
+        std::cout<< "\n";
+    }
+    std::cout << "\n\n";
+    
+
+    std::cout << "Gesù " << count_dim_col << std::endl;
+
 
     return R;
 }
@@ -564,7 +620,7 @@ std::vector<T> AMG(CSRMatrix &A){
 int main()
 {    
     TriangularMesh mesh;
-    mesh.import_from_msh("mesh/mesh1.msh");
+    mesh.import_from_msh("mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -704,11 +760,11 @@ int main()
     //CSRMatrix B(B_temp);
     A.copy_from(A_temp);
     std::vector<bool> result = AMGV4<double>(A); // Specify template type
-    // std::cout << "Result: ";
-    // for (const auto &val : result) {
-    //     std::cout << val << " ";
-    // }
-    // std::cout << std::endl;
+    std::cout << "Result: ";
+    for (const auto &val : result) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
 
     //B.copy_from(B_temp);
     std::cout << "Matrix compressed successfully!"<< std::endl;
