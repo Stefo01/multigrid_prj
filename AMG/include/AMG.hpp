@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include "CSRMatrix.hpp"
+#include "Utilities.hpp"
 
 #define EPSILON 0.25
 
@@ -49,7 +50,7 @@ class AMG
         }
 
 
-        void value_strong_connections(const size_t elementI, std::vector<int> &Ret, int level);
+        void value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level);
         double evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI );
         int apply_AMG();
         int apply_restriction_operator(int level);
