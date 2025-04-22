@@ -1,2 +1,5 @@
 *.vtu
+*.o
+.vscode
+build/
 *.
