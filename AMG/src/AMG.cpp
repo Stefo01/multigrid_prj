@@ -36,7 +36,7 @@ int AMG::apply_restriction_operator(int level){
     return 0;
 }
 
-int AMG::apply_interpolation_operator(int level){
+int AMG::apply_prolungation_operator(int level){
 
     return 0;
 }

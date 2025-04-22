@@ -1,7 +1,7 @@
 #include "../include/Utilities.hpp"
 
 
-void TriangularMesh::import_from_msh(const std::string &mesh_file_name)
+void Utilities::TriangularMesh::import_from_msh(const std::string &mesh_file_name)
 {
     std::ifstream mesh_file(mesh_file_name);
     std::string current_word;
@@ -186,7 +186,7 @@ void TriangularMesh::import_from_msh(const std::string &mesh_file_name)
     }
 }
 
-void TriangularMesh::export_to_vtu(const std::vector<double> &sol)
+void Utilities::TriangularMesh::export_to_vtu(const std::vector<double> &sol)
 // Output file
 {
     std::ofstream outfile("output.vtu");

@@ -53,15 +53,15 @@ class AMG
         double evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI );
         int apply_AMG();
         int apply_restriction_operator(int level);
-        int apply_interpolation_operator(int level);
+        int apply_prolungation_operator(int level);
         int apply_smoother_operator(int level);
 
     private:
         size_t number_of_levels;
 
-        std::vector<std::vector<bool>> fine_course_nodes;                   // for each level, we'll save the vector of choosen Course/Fine nodes
-        std::vector<std::vector<std::vector<bool>>> tot_strong_connections;   // for each level, we'll save the matrix of strong connections
-        std::vector<CSRMatrix> levels_matrix;                               // for each level, we'll save also the solution matrix
+        std::vector<std::vector<bool>>              fine_course_nodes;          // for each level, we'll save the vector of choosen Course/Fine nodes
+        std::vector<std::vector<std::vector<bool>>> tot_strong_connections;     // for each level, we'll save the matrix of strong connections
+        std::vector<CSRMatrix>                      levels_matrix;              // for each level, we'll save also the solution matrix
 };
 
 #endif
