@@ -167,7 +167,7 @@ int main()
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
     Utilities::Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
-    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());
+    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  // ???? chiedi a DEN
 
     //std::cout << sol << std::endl;
     std::cout << " " << std::endl;
