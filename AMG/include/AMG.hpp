@@ -67,8 +67,8 @@ class AMG
 
         std::vector<std::vector<bool>>              mask_nodes;                 // for each level, we'll save the vector of choosen Course/Fine nodes
         std::vector<std::vector<std::vector<bool>>> tot_strong_connections;     // for each level, we'll save the matrix of strong connections
-        std::vector<CSRMatrix>                      levels_matrix;              // for each level, we'll save also the solution matrix
-        std::vector<std::vector<double>>            solution;                   // for each level, we'll save the solution vector
+        std::vector<CSRMatrix>                      levels_matrix;              // for each level, we'll save also the solution matrix                
+        std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
         std::vector<bool>                           general_mask_for_rhs;
         std::vector<double>                         rhs;
 };

@@ -40,10 +40,10 @@ int AMG::apply_restriction_operator(int level){
         return -1;
     }
 
-    int nn = levels_matrix[level].rows();
+    int nn = levels_matrix[level-1].rows();
     
     for(int i = 0; i< nn; i++){
-        value_strong_connections(i, tot_strong_connections[level][i], level); 
+        value_strong_connections(i, tot_strong_connections[level-1][i], level-1); 
     }
     std::cout<<"Strong connection matrix setted for level "<< level <<std::endl;
 
@@ -69,7 +69,7 @@ int AMG::apply_restriction_operator(int level){
                 for(size_t j=0; j< nn; ++j){
                     if((tot_strong_connections[level][i][j] != 0) && (all_nodes_not_yet_selected[j] != 0))
                     {
-                        all_nodes_not_yet_selected[j] += 2;
+                        all_nodes_not_yet_selected[j] += 2;  
                     }
                 }
             }
@@ -98,8 +98,8 @@ int AMG::apply_restriction_operator(int level){
     std::vector<double> sol_temp;
 
     for(int i = 0; i < mask_nodes[level].size(); i++){
-        if (mask_nodes[level][i] == 0){
-            sol_temp.push_back(solution[level-1][i]);
+        if (mask_nodes[level-1][i] == 0){
+            sol_temp.push_back(x_levels[level-1][i]);
             conter_new_mat++;
         }
     }
@@ -111,11 +111,11 @@ int AMG::apply_restriction_operator(int level){
     int j_cols_temp = 0;
     for (int i = 0; i<nn; i++)
     {
-        if (mask_nodes[level][i] == 0)
+        if (mask_nodes[level-1][i] == 0)
         {
             for (int j = 0; j < nn; j++){
-                if (mask_nodes[level][j] == 0){
-                    new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level].coeff(i, j);
+                if (mask_nodes[level-1][j] == 0){
+                    new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level-1].coeff(i, j);
                     j_cols_temp++;
                 }
             }
@@ -137,19 +137,66 @@ int AMG::apply_restriction_operator(int level){
     CSRMatrix A(new_matrix);
     A.copy_from(new_matrix);
     levels_matrix.push_back(A);
-    solution.push_back(sol_temp);
+    x_levels.push_back(sol_temp);
 
     return 0;
 }
 
 int AMG::apply_prolungation_operator(int level){
+    nn = x_levels[level+1].size() //we start to interpolate from level n-1
+    double weight_ij; 
+    for(int i=0; i < nn; i++ ){
+        if(mask_nodes[level][i] == 0){
+            x_levels[level][i] += x_levels[level+1][i] ; //just to copy the value
+        } else{
+            //x_levels[level][i] = 0.0;
+            for (int j = 0; j < nn; j++) { 
+                weight_ij = compute_weigth(i,j,level);
+                x_levels[level][i] += weight_ij * x_levels[level+1][j];
+            }
+        }
+    }
 
     return 0;
+            
+}
+
+int AMG::compute_weight(int i, int j, int level){
+    double a_ij = levels_matrix[level].coeff(i,j);
+    double a_ii = levels_matrix[levels].coeff(i,i);
+    double weight = 0;
+    double a_ik = 0;
+    double a_kj = 0;
+    //course node strong connected are useles for the interpolation
+    
+    //fine node strong connected with i
+    int ns = tot_strong_connection[level][i].size()
+
+    // Sum for strong connections
+    for (int k = 0; k < ns; k++) {
+        if (tot_strong_connection[level][i][k] == 1) {
+            // Strong connection found, accumulate contribution to the weight
+            a_ik = levels_matrix[level].coeff(i, k);
+            a_kj = levels_matrix[level].coeff(k, j);
+            weight += (a_ik * a_kj) / a_ii;
+        }
+    }
+    
+    // Sum for weak connections
+    for (int k = 0; k < ns; k++) {
+        if (tot_strong_connection[level][i][k] == 0) {
+            // Weak connection found, accumulate contribution to the weight
+            a_ik = levels_matrix[level].coeff(i, k);
+            a_kj = levels_matrix[level].coeff(k, j);
+            weight += (a_ik * a_kj) / (a_ii + a_kj);  // Adjusting the weak connections contribution
+        }
+    }
+    return weight;
 }
 
 int AMG::apply_smoother_operator(int level, int iter_number){
 
-    // Possubility: choose between different solvers
+    // Possibility: choose between different solvers
     std::vector<double> rhs_temp;
     for (int i= 0; i < general_mask_for_rhs.size(); i++){
         if (general_mask_for_rhs[i] == 1){
@@ -160,7 +207,7 @@ int AMG::apply_smoother_operator(int level, int iter_number){
 
     for (int i = 0; i < iter_number; ++i)
     {
-        solution[level] * GS;
+        x_levels[level] * GS;
     }
 
     return 0;
