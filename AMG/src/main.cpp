@@ -16,7 +16,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
 
 int main()
 {    
-    Utilities::TriangularMesh mesh;
+    TriangularMesh mesh;
     mesh.import_from_msh("../mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
@@ -42,9 +42,9 @@ int main()
         );
 
         double alpha_integral = element_area *
-            (Utilities::alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
-            Utilities::alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
-            Utilities::alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y)) / 3;
+            (alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
+            alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
+            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y)) / 3;
             
         std::array< std::array<double, 2>, 3> gradients;
         
@@ -114,7 +114,7 @@ int main()
                 }
 
                 rhs.at(mesh.get_nodes()[element[i]].set_index) += 
-                    Utilities::forcing_term(mesh.get_nodes()[element[i]].x, mesh.get_nodes()[element[i]].y) * 
+                    forcing_term(mesh.get_nodes()[element[i]].x, mesh.get_nodes()[element[i]].y) * 
                     element_area / 3;               // volume of the corresponding tetrahedron
 
             }
@@ -134,7 +134,7 @@ int main()
                         {
 
                             rhs.at(mesh.get_nodes()[element[i]].set_index) -=
-                                Utilities::boundary_function(mesh.get_nodes()[element[j]].x,
+                                boundary_function(mesh.get_nodes()[element[j]].x,
                                     mesh.get_nodes()[element[j]].y) * alpha_integral *
                                 (gradients[i][0] * gradients[j][0] +
                                 gradients[i][1] * gradients[j][1]) / 3;
@@ -166,7 +166,7 @@ int main()
     //B.copy_from(B_temp);
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
-    Utilities::Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
+    Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  // ???? chiedi a DEN
 
     //std::cout << sol << std::endl;

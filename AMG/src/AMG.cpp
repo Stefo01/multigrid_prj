@@ -54,7 +54,7 @@ int AMG::apply_restriction_operator(int level){
     }
 
     bool GoOn = true;
-    size_t index = Utilities::getRandomInit(nn);
+    size_t index = getRandomInit(nn);
     while(GoOn)
     {
         GoOn = false;
@@ -142,39 +142,20 @@ int AMG::apply_restriction_operator(int level){
     return 0;
 }
 
-int AMG::apply_prolungation_operator(int level){
-    nn = x_levels[level+1].size() //we start to interpolate from level n-1
-    double weight_ij; 
-    for(int i=0; i < nn; i++ ){
-        if(mask_nodes[level][i] == 0){
-            x_levels[level][i] += x_levels[level+1][i] ; //just to copy the value
-        } else{
-            //x_levels[level][i] = 0.0;
-            for (int j = 0; j < nn; j++) { 
-                weight_ij = compute_weigth(i,j,level);
-                x_levels[level][i] += weight_ij * x_levels[level+1][j];
-            }
-        }
-    }
-
-    return 0;
-            
-}
-
 int AMG::compute_weight(int i, int j, int level){
     double a_ij = levels_matrix[level].coeff(i,j);
-    double a_ii = levels_matrix[levels].coeff(i,i);
+    double a_ii = levels_matrix[level].coeff(i,i);
     double weight = 0;
     double a_ik = 0;
     double a_kj = 0;
     //course node strong connected are useles for the interpolation
     
     //fine node strong connected with i
-    int ns = tot_strong_connection[level][i].size()
+    int ns = tot_strong_connections[level][i].size();
 
     // Sum for strong connections
     for (int k = 0; k < ns; k++) {
-        if (tot_strong_connection[level][i][k] == 1) {
+        if (tot_strong_connections[level][i][k] == 1) {
             // Strong connection found, accumulate contribution to the weight
             a_ik = levels_matrix[level].coeff(i, k);
             a_kj = levels_matrix[level].coeff(k, j);
@@ -184,7 +165,7 @@ int AMG::compute_weight(int i, int j, int level){
     
     // Sum for weak connections
     for (int k = 0; k < ns; k++) {
-        if (tot_strong_connection[level][i][k] == 0) {
+        if (tot_strong_connections[level][i][k] == 0) {
             // Weak connection found, accumulate contribution to the weight
             a_ik = levels_matrix[level].coeff(i, k);
             a_kj = levels_matrix[level].coeff(k, j);
@@ -193,6 +174,27 @@ int AMG::compute_weight(int i, int j, int level){
     }
     return weight;
 }
+
+int AMG::apply_prolungation_operator(int level){
+    int nn = x_levels[level+1].size(); //we start to interpolate from level n-1
+    double weight_ij; 
+    for(int i=0; i < nn; i++ ){
+        if(mask_nodes[level][i] == 0){
+            x_levels[level][i] += x_levels[level+1][i] ; //just to copy the value
+        } else{
+            //x_levels[level][i] = 0.0;
+            for (int j = 0; j < nn; j++) { 
+                weight_ij = compute_weight(i,j,level);
+                x_levels[level][i] += weight_ij * x_levels[level+1][j];
+            }
+        }
+    }
+
+    return 0;
+            
+}
+
+
 
 int AMG::apply_smoother_operator(int level, int iter_number){
 
@@ -203,7 +205,7 @@ int AMG::apply_smoother_operator(int level, int iter_number){
             rhs_temp.push_back(rhs[i]);
         }
     }
-    Utilities::Gauss_Seidel_iteration< std::vector<double> > GS(levels_matrix[level], rhs);
+    Gauss_Seidel_iteration< std::vector<double> > GS(levels_matrix[level], rhs);
 
     for (int i = 0; i < iter_number; ++i)
     {

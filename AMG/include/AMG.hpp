@@ -44,7 +44,7 @@ class AMG
                 tot_strong_connections[level].resize(num_rows, std::vector<bool>(num_rows, false));
             }
             levels_matrix.push_back(A); // Initialize the first level with the input matrix
-            solution.push_back(soll);
+            x_levels.push_back(soll);
         }
 
         ~AMG()
@@ -57,11 +57,13 @@ class AMG
         int apply_AMG();
         int apply_smoother_operator(int level, int iter_number);
         
+        
 
     private:
     
         int apply_restriction_operator(int level);
         int apply_prolungation_operator(int level);
+        int compute_weight(int i, int j, int level);
         
         size_t number_of_levels;
 

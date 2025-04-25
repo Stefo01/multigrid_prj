@@ -1,4 +1,4 @@
-#include "../include/CSRMatrix.hpp"
+#include "CSRMatrix.hpp"
 
 void CSRMatrix::copy_from(Matrix &A)
 {
