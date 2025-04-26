@@ -59,7 +59,7 @@ class AMG
     
         int apply_restriction_operator(int level);
         int apply_prolungation_operator(int level);
-        int compute_weight(int i, int j, int level);
+        double compute_weight(int i, int j, int level);
         
         size_t number_of_levels;
 

@@ -152,38 +152,73 @@ int AMG::apply_restriction_operator(int level){
     return 0;
 }
 
-int AMG::compute_weight(int i, int j, int level){
-    double a_ij = levels_matrix[level].coeff(i,j);
-    double a_ii = levels_matrix[level].coeff(i,i);
-    double weight = 0;
-    double a_ik = 0;
-    double a_kj = 0;
-    //course node strong connected are useles for the interpolation
-    
-    //fine node strong connected with i
-    int ns = tot_strong_connections[level][i].size();
+double AMG::compute_weight(int i, int j, int level) {
+    double a_ij = levels_matrix[level].coeff(i, j);
+    double weight = 0.0;
+    double sum_weak = 0.0;
+    double sum_strong = 0.0;
+    double a_ik, a_kj, a_km, a_kk, denominator;
+    double a_sign_km,a_sign_kj,sum_a_sign_km; //these to manage sign 
+    size_t nn = levels_matrix[level].rows();
 
-    // Sum for strong connections
-    for (int k = 0; k < ns; k++) {
-        if (tot_strong_connections[level][i][k] == 1) {
-            // Strong connection found, accumulate contribution to the weight
+    // 1) Compute den: a_ij + sum of weak connections
+    for (size_t k = 0; k < nn; ++k) {
+        if (tot_strong_connections[level][i][k] == 0 && k != i) { // Weak connections
             a_ik = levels_matrix[level].coeff(i, k);
-            a_kj = levels_matrix[level].coeff(k, j);
-            weight += (a_ik * a_kj) / a_ii;
+            sum_weak += a_ik;
         }
     }
-    
-    // Sum for weak connections
-    for (int k = 0; k < ns; k++) {
-        if (tot_strong_connections[level][i][k] == 0) {
-            // Weak connection found, accumulate contribution to the weight
+
+    denominator = a_ij + sum_weak;
+    //just to check den value 
+    if (std::abs(denominator) < 1e-12) {
+        std::cerr << "Warning: Denominator very small at node (" << i << "," << j << ")" << std::endl;
+        denominator = (denominator >= 0) ? 1e-12 : -1e-12; // mantieni segno corretto
+    }
+
+    // 2) a_ij:
+    sum_strong += a_ij;
+
+    // 3) strong connections:
+    for (size_t k = 0; k < nn; ++k) {
+        if (tot_strong_connections[level][i][k] == 1 && k != i) { // Strong connections
             a_ik = levels_matrix[level].coeff(i, k);
             a_kj = levels_matrix[level].coeff(k, j);
-            weight += (a_ik * a_kj) / (a_ii + a_kj);  // Adjusting the weak connections contribution
+            a_kk = levels_matrix[level].coeff(k, k);
+
+            // Compute a_sign_kj (as written in paper)
+            a_sign_kj;
+            if ((a_kj >= 0 && a_kk >= 0) || (a_kj <= 0 && a_kk <= 0)) {
+                a_sign_kj = 0.0; //with same sign we ignore it
+            } else {
+                a_sign_kj = a_kj;//with different sign we use it
+            }
+
+            // Somma a_sign_km on all course nodes
+            sum_a_sign_km = 0.0;
+            for (size_t m = 0; m < nn; ++m) {
+                if (mask_nodes[level][m] == 0) { // m is course node
+                    a_km = levels_matrix[level].coeff(k, m);
+                    if ((a_km >= 0 && a_kk >= 0) || (a_km <= 0 && a_kk <= 0)) {
+                        a_sign_km = 0.0;
+                    } else {
+                        a_sign_km = a_km;
+                    }
+                    sum_a_sign_km += a_sign_km;
+                }
+            }
+
+            if (std::abs(sum_a_sign_km) > 1e-12) {
+                sum_strong += a_ik * (a_sign_kj / sum_a_sign_km);
+            }
         }
     }
+
+    // 4) Computing final weight
+    weight = - (sum_strong) / denominator;
     return weight;
 }
+
 
 int AMG::apply_prolungation_operator(int level){
     int nn = x_levels[level+1].size(); //we start to interpolate from level n-1
