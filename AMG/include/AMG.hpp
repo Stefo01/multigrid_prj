@@ -29,20 +29,9 @@
 class AMG
 {
     public:
-        AMG(CSRMatrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_), rhs(rhs_)
+        AMG(CSRMatrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_)
         {
-            size_t num_rows = A.rows();
-            general_mask_for_rhs = std::vector<bool>(num_rows, true);
-
-            // Initialize mask_nodes: vector of size 'number_of_levels', each with 'num_rows' set to false
-            mask_nodes.resize(number_of_levels, std::vector<bool>(num_rows, false));
-
-            // Initialize TOTStrongConnections: number_of_levels x num_rows x num_rows filled with false
-            tot_strong_connections.resize(number_of_levels);
-            
-            for (size_t level = 0; level < number_of_levels; ++level) {
-                tot_strong_connections[level].resize(num_rows, std::vector<bool>(num_rows, false));
-            }
+            rhs.push_back(rhs_);
             levels_matrix.push_back(A); // Initialize the first level with the input matrix
             x_levels.push_back(soll);
         }
@@ -56,7 +45,14 @@ class AMG
         double evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI );
         int apply_AMG();
         int apply_smoother_operator(int level, int iter_number);
-        
+
+        void print_strong_connections(int level);
+        void print_CSRmatrix(int level);
+        void print_x_levels(int level);
+        void print_mask_nodes(int level);
+        std::vector<std::vector<bool>> get_strong_connections(int level) {
+            return tot_strong_connections[level];
+        }
         
 
     private:
@@ -71,8 +67,7 @@ class AMG
         std::vector<std::vector<std::vector<bool>>> tot_strong_connections;     // for each level, we'll save the matrix of strong connections
         std::vector<CSRMatrix>                      levels_matrix;              // for each level, we'll save also the solution matrix                
         std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
-        std::vector<bool>                           general_mask_for_rhs;
-        std::vector<double>                         rhs;
+        std::vector<std::vector<double>>            rhs;
 };
 
 #endif

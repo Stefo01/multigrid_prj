@@ -156,6 +156,12 @@ int main()
     CSRMatrix A(A_temp);
     //CSRMatrix B(B_temp);
     A.copy_from(A_temp);
+
+    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
+
+    AMG amg(A, sol, 1, rhs);
+    amg.apply_AMG();
+    // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
     //std::vector<bool> result = AMGV4<double>(A); // Specify template type
     // std::cout << "Result: ";
     // for (const auto &val : result) {
@@ -167,7 +173,6 @@ int main()
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
     Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
-    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  // ???? chiedi a DEN
 
     //std::cout << sol << std::endl;
     std::cout << " " << std::endl;
