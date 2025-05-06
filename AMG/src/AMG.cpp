@@ -160,6 +160,7 @@ double AMG::compute_weight(int i, int j, int level) {
     double a_ik, a_kj, a_km, a_kk, denominator;
     double a_sign_km,a_sign_kj,sum_a_sign_km; //these to manage sign 
     size_t nn = levels_matrix[level].rows();
+    
 
     // 1) Compute den: a_ij + sum of weak connections
     for (size_t k = 0; k < nn; ++k) {
@@ -221,16 +222,27 @@ double AMG::compute_weight(int i, int j, int level) {
 
 
 int AMG::apply_prolungation_operator(int level){
-    int nn = x_levels[level+1].size(); //we start to interpolate from level n-1
+    int nn = x_levels[level].size(); //we start to interpolate from level n-1
+    std :: cout<<nn<<std::endl;
+    int temp = 0;
+    int temp1 = 0;
     double weight_ij; 
     for(int i=0; i < nn; i++ ){
+        //std::cout<<"for cicle "<< i << " " << x_levels[level+1][temp] << " " << mask_nodes[level][i] << std::endl;
         if(mask_nodes[level][i] == 0){
-            x_levels[level][i] += x_levels[level+1][i] ; //just to copy the value
+            x_levels[level][i] += x_levels[level+1][temp] ; //just to copy the value
+            temp += 1;
         } else{
             //x_levels[level][i] = 0.0;
+            temp1 = 0;
             for (int j = 0; j < nn; j++) { 
-                weight_ij = compute_weight(i,j,level);
-                x_levels[level][i] += weight_ij * x_levels[level+1][j];
+                if(mask_nodes[level][j] == 0){
+                    std::cout<<"for cicle "<< j << " " << x_levels[level+1][temp1] << " " << mask_nodes[level][j] << std::endl;
+                    weight_ij = compute_weight(i,j,level);
+                    std::cout<<"after weight"<<std::endl;
+                    x_levels[level][i] += weight_ij * x_levels[level+1][temp1];
+                    temp1++;
+                }
             }
         }
     }
@@ -271,9 +283,9 @@ int AMG::apply_AMG(){
     // print_x_levels(1);  
     // print_mask_nodes(0);
 
-    apply_smoother_operator(1, 10); // Does not work yet
-    std::cout << "Here we go 2!" << std::endl;
-    apply_prolungation_operator(1);
+    //apply_smoother_operator(1, 10); // Does not work yet
+    //std::cout << "Here we go 2!" << std::endl;
+    apply_prolungation_operator(0);
     std::cout << "Here we go 3!" << std::endl;
     return 0;
 }
