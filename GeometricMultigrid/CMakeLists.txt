@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12.0)
-project(AlgebraicMultiGrid LANGUAGES CXX C)
+project(GeometricMultiGrid LANGUAGES CXX C)
 
 include(../common/cmake-common.cmake)
 include_directories(include)
@@ -7,8 +7,7 @@ include_directories(include)
 file(GLOB source_files
   "src/*.cpp"
 )
-
-add_executable(AMG ${source_files})
+add_executable(Multigrid ${source_files})
 
 
 
