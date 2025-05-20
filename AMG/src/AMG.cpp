@@ -143,9 +143,9 @@ int AMG::apply_restriction_operator(int level){
 
     new_matrix.count_non_zeros();
 
-    CSRMatrix A(new_matrix);
-    A.copy_from(new_matrix);
-    levels_matrix.push_back(&A);
+    std::unique_ptr<CSRMatrix> A = std::make_unique<CSRMatrix> (new_matrix);
+    A->copy_from(new_matrix);
+    levels_matrix.push_back(std::move(A));
     x_levels.push_back(sol_temp);
     rhs.push_back(rhs_temp);
 
@@ -283,9 +283,9 @@ int AMG::apply_AMG(){
     // print_x_levels(1);  
     // print_mask_nodes(0);
 
-    //apply_smoother_operator(1, 10); // Does not work yet
+    apply_smoother_operator(1, 10); // Does not work yet
     //std::cout << "Here we go 2!" << std::endl;
-    //apply_prolungation_operator(0);
+    apply_prolungation_operator(0);
     std::cout << "Here we go 3!" << std::endl;
     return 0;
 }

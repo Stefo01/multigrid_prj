@@ -14,6 +14,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <algorithm>
+#include <memory>
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
 
@@ -29,10 +30,13 @@
 class AMG
 {
     public:
-        AMG(CSRMatrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_)
+        AMG(Matrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_)
         {
             rhs.push_back(rhs_);
-            levels_matrix.push_back(&A); // Initialize the first level with the input matrix
+            //levels_matrix.push_back(&A); // Initialize the first level with the input matrix
+            std::unique_ptr<CSRMatrix> tmp = std::make_unique<CSRMatrix>(A);
+            tmp->copy_from(A);
+            levels_matrix.push_back(std::move(tmp));
             x_levels.push_back(soll);
         }
 
@@ -66,7 +70,7 @@ class AMG
 
         std::vector<std::vector<bool>>              mask_nodes;                 // for each level, we'll save the vector of choosen Course/Fine nodes
         std::vector<std::vector<std::vector<bool>>> tot_strong_connections;     // for each level, we'll save the matrix of strong connections
-        std::vector<CSRMatrix*>                     levels_matrix;              // for each level, we'll save also the solution matrix                
+        std::vector<std::unique_ptr<CSRMatrix>>     levels_matrix;              // for each level, we'll save also the solution matrix                
         std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
         std::vector<std::vector<double>>            rhs;
 };

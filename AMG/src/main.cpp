@@ -159,7 +159,7 @@ int main()
 
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
 
-    AMG amg(A, sol, 1, rhs);
+    AMG amg(A_temp, sol, 1, rhs);
     amg.apply_AMG();
     // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
     //std::vector<bool> result = AMGV4<double>(A); // Specify template type
@@ -170,7 +170,6 @@ int main()
     // std::cout << std::endl;
 
     //B.copy_from(B_temp);
-    std::cout << "Matrix compressed successfully!"<< std::endl;
 
     //Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
@@ -184,7 +183,7 @@ int main()
     //    sol * GS;
     //}
 
-    //mesh.export_to_vtu(sol);
+    mesh.export_to_vtu(sol);
 
     //std::cout << sol << std::endl;
 

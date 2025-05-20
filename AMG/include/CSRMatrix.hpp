@@ -69,7 +69,8 @@ class CSRMatrix
             non_zero_elements = new std::pair<size_t, double>[nnz];
             end = &non_zero_elements[nnz];
             std::vector<bool> xx(rows_,true);
-            mask_amg.push_back(xx);        }
+            mask_amg.push_back(xx);        
+        }
 
         CSRMatrix(Matrix&A):
         n_rows(A.rows()), n_cols(A.cols())
@@ -80,6 +81,7 @@ class CSRMatrix
             std::vector<bool> xx(A.rows(),true);
             mask_amg.push_back(xx);
         }
+
 
         ~CSRMatrix()
         {
