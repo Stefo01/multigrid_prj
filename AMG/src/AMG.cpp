@@ -3,7 +3,7 @@
 void AMG::value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level){
 
     double max = 0.0;
-    std::vector<std::pair<size_t, double> > NonZR = levels_matrix[level].nonZerosInRow(elementI);
+    std::vector<std::pair<size_t, double> > NonZR = levels_matrix[level]->nonZerosInRow(elementI);
 
     for(std::pair<size_t, double> el : NonZR)
     {  
@@ -41,7 +41,7 @@ int AMG::apply_restriction_operator(int level){
         return -1;
     }
 
-    int nn = levels_matrix[level-1].rows();
+    int nn = levels_matrix[level-1]->rows();
 
     std::vector<std::vector<bool>> strong_connections_temp(nn, std::vector<bool>(nn, 0));
     
@@ -132,7 +132,7 @@ int AMG::apply_restriction_operator(int level){
         {
             for (int j = 0; j < nn; j++){
                 if (mask_nodes_temp[j] == 0){
-                    new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level-1].coeff(i, j);
+                    new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level-1]->coeff(i, j);
                     j_cols_temp++;
                 }
             }
@@ -145,7 +145,7 @@ int AMG::apply_restriction_operator(int level){
 
     CSRMatrix A(new_matrix);
     A.copy_from(new_matrix);
-    levels_matrix.push_back(A);
+    levels_matrix.push_back(&A);
     x_levels.push_back(sol_temp);
     rhs.push_back(rhs_temp);
 
@@ -153,19 +153,19 @@ int AMG::apply_restriction_operator(int level){
 }
 
 double AMG::compute_weight(int i, int j, int level) {
-    double a_ij = levels_matrix[level].coeff(i, j);
+    double a_ij = levels_matrix[level]->coeff(i, j);
     double weight = 0.0;
     double sum_weak = 0.0;
     double sum_strong = 0.0;
     double a_ik, a_kj, a_km, a_kk, denominator;
     double a_sign_km,a_sign_kj,sum_a_sign_km; //these to manage sign 
-    size_t nn = levels_matrix[level].rows();
+    size_t nn = levels_matrix[level]->rows();
     
 
     // 1) Compute den: a_ij + sum of weak connections
     for (size_t k = 0; k < nn; ++k) {
         if (tot_strong_connections[level][i][k] == 0 && k != i) { // Weak connections
-            a_ik = levels_matrix[level].coeff(i, k);
+            a_ik = levels_matrix[level]->coeff(i, k);
             sum_weak += a_ik;
         }
     }
@@ -183,9 +183,9 @@ double AMG::compute_weight(int i, int j, int level) {
     // 3) strong connections:
     for (size_t k = 0; k < nn; ++k) {
         if (tot_strong_connections[level][i][k] == 1 && k != i) { // Strong connections
-            a_ik = levels_matrix[level].coeff(i, k);
-            a_kj = levels_matrix[level].coeff(k, j);
-            a_kk = levels_matrix[level].coeff(k, k);
+            a_ik = levels_matrix[level]->coeff(i, k);
+            a_kj = levels_matrix[level]->coeff(k, j);
+            a_kk = levels_matrix[level]->coeff(k, k);
 
             // Compute a_sign_kj (as written in paper)
             a_sign_kj;
@@ -199,7 +199,7 @@ double AMG::compute_weight(int i, int j, int level) {
             sum_a_sign_km = 0.0;
             for (size_t m = 0; m < nn; ++m) {
                 if (mask_nodes[level][m] == 0) { // m is course node
-                    a_km = levels_matrix[level].coeff(k, m);
+                    a_km = levels_matrix[level]->coeff(k, m);
                     if ((a_km >= 0 && a_kk >= 0) || (a_km <= 0 && a_kk <= 0)) {
                         a_sign_km = 0.0;
                     } else {
@@ -263,7 +263,7 @@ int AMG::apply_smoother_operator(int level, int iter_number){
         return -1;
     }
 
-    Gauss_Seidel_iteration< std::vector<double> > GS(levels_matrix[level], rhs[level]);
+    Gauss_Seidel_iteration< std::vector<double> > GS(*levels_matrix[level], rhs[level]);
 
     for (int i = 0; i < iter_number; ++i)
     {
@@ -285,7 +285,7 @@ int AMG::apply_AMG(){
 
     //apply_smoother_operator(1, 10); // Does not work yet
     //std::cout << "Here we go 2!" << std::endl;
-    apply_prolungation_operator(0);
+    //apply_prolungation_operator(0);
     std::cout << "Here we go 3!" << std::endl;
     return 0;
 }
@@ -313,7 +313,7 @@ void AMG::print_CSRmatrix(int level){
         std::cerr << "Invalid level: " << level << std::endl;
         return;
     }
-    levels_matrix[level].print();
+    levels_matrix[level]->print();
 }
 
 

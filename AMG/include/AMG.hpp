@@ -32,12 +32,13 @@ class AMG
         AMG(CSRMatrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_)
         {
             rhs.push_back(rhs_);
-            levels_matrix.push_back(A); // Initialize the first level with the input matrix
+            levels_matrix.push_back(&A); // Initialize the first level with the input matrix
             x_levels.push_back(soll);
         }
 
         ~AMG()
         {
+
         }
 
 
@@ -65,7 +66,7 @@ class AMG
 
         std::vector<std::vector<bool>>              mask_nodes;                 // for each level, we'll save the vector of choosen Course/Fine nodes
         std::vector<std::vector<std::vector<bool>>> tot_strong_connections;     // for each level, we'll save the matrix of strong connections
-        std::vector<CSRMatrix>                      levels_matrix;              // for each level, we'll save also the solution matrix                
+        std::vector<CSRMatrix*>                     levels_matrix;              // for each level, we'll save also the solution matrix                
         std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
         std::vector<std::vector<double>>            rhs;
 };

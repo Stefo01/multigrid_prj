@@ -10,5 +10,5 @@ file(GLOB source_files
 
 add_executable(AMG ${source_files})
 
-
+add_executable(test debugtest.cpp src/CSRMatrix.cpp src/Utilities.cpp)
 

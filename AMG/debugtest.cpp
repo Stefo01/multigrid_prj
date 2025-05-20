@@ -1,21 +1,10 @@
+#include <iostream>
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
-#include "AMG.hpp"
 
-std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
+
+int main(int argc, char **argv)
 {
-    os << "[ ";
-    for (const auto &p : vec)
-    {
-        os << p << " ";
-    }
-    os << "]";
-    return os;
-}
-
-
-int main()
-{    
     TriangularMesh mesh;
     mesh.import_from_msh("../mesh/mesh2.msh");
     //mesh.export_to_vtu();
@@ -29,6 +18,9 @@ int main()
     //Matrix B_temp(mesh.n_nodes() - mesh.n_b_nodes(), mesh.n_nodes());
     std::vector<double> rhs(mesh.n_nodes() - mesh.n_b_nodes());
 
+
+
+    
     for (const auto &element : mesh.get_elements_indexes())
     {
         bool element_on_boundary = false;
@@ -44,7 +36,7 @@ int main()
         double alpha_integral = element_area *
             (alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
             alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
-            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y)) / 3;
+            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y));
             
         std::array< std::array<double, 2>, 3> gradients;
         
@@ -114,7 +106,7 @@ int main()
                 }
 
                 rhs.at(mesh.get_nodes()[element[i]].set_index) += 
-                    forcing_term(mesh.get_nodes()[element[i]].x, mesh.get_nodes()[element[i]].y) * 
+                    forcing_term(mesh.get_nodes()[element[i]].x, mesh.get_nodes()[element[i]].y) *
                     element_area / 3;               // volume of the corresponding tetrahedron
 
             }
@@ -145,6 +137,8 @@ int main()
         }
 
     }
+
+
     std::cout << "Matrix created succesfully!" << std::endl;
     //A_temp.print();
     std::cout << "Counting non zero elements..." << std::endl;
@@ -157,36 +151,25 @@ int main()
     //CSRMatrix B(B_temp);
     A.copy_from(A_temp);
 
-    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
-
-    AMG amg(A, sol, 1, rhs);
-    amg.apply_AMG();
-    // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
-    //std::vector<bool> result = AMGV4<double>(A); // Specify template type
-    // std::cout << "Result: ";
-    // for (const auto &val : result) {
-    //     std::cout << val << " ";
-    // }
-    // std::cout << std::endl;
-
-    //B.copy_from(B_temp);
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
-    //Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
+    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
+
+    Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
     //std::cout << sol << std::endl;
-    //std::cout << " " << std::endl;
+    std::cout << " " << std::endl;
     //A.print();
     //B.print();
 
-    //for (int i = 0; i < 5000; ++i)
-    //{
-    //    sol * GS;
-    //}
+    for (int i = 0; i < 5000; ++i)
+    {
+        sol * GS;
+    }
 
-    //mesh.export_to_vtu(sol);
-
-    //std::cout << sol << std::endl;
+    mesh.export_to_vtu(sol);
 
     return 0;
 }
+
+
