@@ -30,7 +30,7 @@
 class AMG
 {
     public:
-        AMG(Matrix &A, std::vector<double> soll, size_t number_of_levels_, std::vector<double> rhs_): number_of_levels(number_of_levels_)
+        AMG(Matrix &A, std::vector<double> &soll, size_t number_of_levels_, std::vector<double> &rhs_): number_of_levels(number_of_levels_)
         {
             rhs.push_back(rhs_);
             //levels_matrix.push_back(&A); // Initialize the first level with the input matrix
@@ -59,6 +59,13 @@ class AMG
             return tot_strong_connections[level];
         }
         
+        std::vector<double> get_x_levels(int level) {
+            return x_levels[level];
+        }
+
+        std::vector<double> get_solution() {
+            return x_levels[0];
+        }
 
     private:
     

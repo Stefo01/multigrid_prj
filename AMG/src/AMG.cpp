@@ -262,7 +262,7 @@ int AMG::apply_smoother_operator(int level, int iter_number){
         std::cerr << "Invalid number of iterations: " << iter_number << std::endl;
         return -1;
     }
-
+    
     Gauss_Seidel_iteration< std::vector<double> > GS(*levels_matrix[level], rhs[level]);
 
     for (int i = 0; i < iter_number; ++i)
@@ -276,17 +276,14 @@ int AMG::apply_smoother_operator(int level, int iter_number){
 int AMG::apply_AMG(){
 
     // TODO : implement the AMG algorithm. This class is the main class of the algorithm
+    apply_smoother_operator(0, 10);
     apply_restriction_operator(1);  // from 0 to 1
-    std::cout << "Here we go 1!" << std::endl;
-
     // print_strong_connections(0);
     // print_x_levels(1);  
     // print_mask_nodes(0);
-
-    apply_smoother_operator(1, 10); // Does not work yet
-    //std::cout << "Here we go 2!" << std::endl;
+    apply_smoother_operator(1, 50); // Does not work yet
     apply_prolungation_operator(0);
-    std::cout << "Here we go 3!" << std::endl;
+    apply_smoother_operator(0, 10);
     return 0;
 }
 

@@ -161,6 +161,7 @@ int main()
 
     AMG amg(A_temp, sol, 1, rhs);
     amg.apply_AMG();
+
     // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
     //std::vector<bool> result = AMGV4<double>(A); // Specify template type
     // std::cout << "Result: ";
@@ -171,19 +172,19 @@ int main()
 
     //B.copy_from(B_temp);
 
-    //Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
+    // Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
-    //std::cout << sol << std::endl;
-    //std::cout << " " << std::endl;
-    //A.print();
-    //B.print();
+    // std::cout << sol << std::endl;
+    // std::cout << " " << std::endl;
+    // //A.print();
+    // //B.print();
 
-    //for (int i = 0; i < 5000; ++i)
-    //{
+    // for (int i = 0; i < 5000; ++i)
+    // {
     //    sol * GS;
-    //}
+    // }
 
-    mesh.export_to_vtu(sol);
+    mesh.export_to_vtu(amg.get_solution());
 
     //std::cout << sol << std::endl;
 
