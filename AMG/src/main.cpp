@@ -17,7 +17,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
 int main()
 {    
     TriangularMesh mesh;
-    mesh.import_from_msh("../mesh/mesh2.msh");
+    mesh.import_from_msh("../mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -44,7 +44,7 @@ int main()
         double alpha_integral = element_area *
             (alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
             alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
-            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y)) / 3;
+            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y));
             
         std::array< std::array<double, 2>, 3> gradients;
         

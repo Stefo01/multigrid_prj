@@ -6,7 +6,7 @@
 int main(int argc, char **argv)
 {
     TriangularMesh mesh;
-    mesh.import_from_msh("../mesh/mesh2.msh");
+    mesh.import_from_msh("../mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;

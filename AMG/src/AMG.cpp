@@ -104,7 +104,7 @@ int AMG::apply_restriction_operator(int level){
     }
 
     mask_nodes.push_back(mask_nodes_temp);
-    std::cout<<"Mask node setted for level "<< level <<std::endl;
+    //std::cout<<"Mask node setted for level "<< level <<std::endl;
 
     // print_mask_nodes(level-1);
 
@@ -152,6 +152,8 @@ int AMG::apply_restriction_operator(int level){
     return 0;
 }
 
+
+
 double AMG::compute_weight(int i, int j, int level) {
     double a_ij = levels_matrix[level]->coeff(i, j);
     double weight = 0.0;
@@ -163,7 +165,8 @@ double AMG::compute_weight(int i, int j, int level) {
     
 
     // 1) Compute den: a_ij + sum of weak connections
-    for (size_t k = 0; k < nn; ++k) {
+    for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
+        size_t k = neighbor.first;
         if (tot_strong_connections[level][i][k] == 0 && k != i) { // Weak connections
             a_ik = levels_matrix[level]->coeff(i, k);
             sum_weak += a_ik;
@@ -173,7 +176,7 @@ double AMG::compute_weight(int i, int j, int level) {
     denominator = a_ij + sum_weak;
     //just to check den value 
     if (std::abs(denominator) < 1e-12) {
-        std::cerr << "Warning: Denominator very small at node (" << i << "," << j << ")" << std::endl;
+        //std::cerr << "Warning: Denominator very small at node (" << i << "," << j << ")" << std::endl;
         denominator = (denominator >= 0) ? 1e-12 : -1e-12; // mantieni segno corretto
     }
 
@@ -181,7 +184,13 @@ double AMG::compute_weight(int i, int j, int level) {
     sum_strong += a_ij;
 
     // 3) strong connections:
-    for (size_t k = 0; k < nn; ++k) {
+    //for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i))
+    //{
+    //    size_t = k = neighbor.first;
+    //    double a_ik = neighbor.second;
+    //}
+    for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
+        size_t k = neighbor.first;
         if (tot_strong_connections[level][i][k] == 1 && k != i) { // Strong connections
             a_ik = levels_matrix[level]->coeff(i, k);
             a_kj = levels_matrix[level]->coeff(k, j);
@@ -197,7 +206,8 @@ double AMG::compute_weight(int i, int j, int level) {
 
             // Somma a_sign_km on all course nodes
             sum_a_sign_km = 0.0;
-            for (size_t m = 0; m < nn; ++m) {
+            for (const auto &m_neighbor : levels_matrix[level]->nonZerosInRow(k)) {
+                size_t m = m_neighbor.first;
                 if (mask_nodes[level][m] == 0) { // m is course node
                     a_km = levels_matrix[level]->coeff(k, m);
                     if ((a_km >= 0 && a_kk >= 0) || (a_km <= 0 && a_kk <= 0)) {
@@ -235,11 +245,12 @@ int AMG::apply_prolungation_operator(int level){
         } else{
             //x_levels[level][i] = 0.0;
             temp1 = 0;
-            for (int j = 0; j < nn; j++) { 
+            for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
+                size_t j = neighbor.first;
                 if(mask_nodes[level][j] == 0){
-                    std::cout<<"for cicle "<< j << " " << x_levels[level+1][temp1] << " " << mask_nodes[level][j] << std::endl;
+                    //std::cout<<"for cicle "<< j << " " << x_levels[level+1][temp1] << " " << mask_nodes[level][j] << std::endl;
                     weight_ij = compute_weight(i,j,level);
-                    std::cout<<"after weight"<<std::endl;
+                    //std::cout<<"after weight"<<std::endl;
                     x_levels[level][i] += weight_ij * x_levels[level+1][temp1];
                     temp1++;
                 }
@@ -276,13 +287,18 @@ int AMG::apply_smoother_operator(int level, int iter_number){
 int AMG::apply_AMG(){
 
     // TODO : implement the AMG algorithm. This class is the main class of the algorithm
+    std::cout << "PRE-SMOOTHING" << std::endl;
     apply_smoother_operator(0, 10);
+    std::cout << "COARSENING" << std::endl;
     apply_restriction_operator(1);  // from 0 to 1
     // print_strong_connections(0);
     // print_x_levels(1);  
     // print_mask_nodes(0);
+    std::cout << "SOLUTION ON THE COARSE GRID" << std::endl;
     apply_smoother_operator(1, 50); // Does not work yet
+    std::cout << "PROLONGATION" << std::endl;
     apply_prolungation_operator(0);
+    std::cout << "POST-SMOOTHING" << std::endl;
     apply_smoother_operator(0, 10);
     return 0;
 }
