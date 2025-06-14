@@ -50,7 +50,6 @@ class AMG
         double evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI );
         int apply_AMG();
         int apply_smoother_operator(int level, int iter_number);
-
         void print_strong_connections(int level);
         void print_CSRmatrix(int level);
         void print_x_levels(int level);

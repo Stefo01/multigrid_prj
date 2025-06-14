@@ -8,7 +8,7 @@ void AMG::value_strong_connections(const size_t elementI, std::vector<bool> &Ret
     for(std::pair<size_t, double> el : NonZR)
     {  
         if(el.first != elementI && std::abs(el.second) > max)
-            max = el.second;
+            max = std::abs(el.second);
     }
 
     for(std::pair<size_t, double> el : NonZR)
@@ -153,7 +153,24 @@ int AMG::apply_restriction_operator(int level){
 }
 
 
+double AMG::compute_weight(int i, int j, int level) {
+    // Interpolazione classica: peso = a_ij / somma(|a_ik|) su tutti i coarse k collegati a i
+    double a_ij = levels_matrix[level]->coeff(i, j);
+    double sum = 0.0;
 
+    for (const auto& neighbor : levels_matrix[level]->nonZerosInRow(i)) {
+        size_t k = neighbor.first;
+        if (mask_nodes[level][k] == 0 && k != i) { // solo coarse nodes
+            sum += std::abs(levels_matrix[level]->coeff(i, k));
+        }
+    }
+    std::cout << "a_ij: " << a_ij << ", sum: " << sum << std::endl;
+
+    if (std::abs(sum) < 1e-12) return 0.0; // evita divisione per zero
+    return -a_ij / sum;
+}
+
+/*
 double AMG::compute_weight(int i, int j, int level) {
     double a_ij = levels_matrix[level]->coeff(i, j);
     double weight = 0.0;
@@ -230,6 +247,7 @@ double AMG::compute_weight(int i, int j, int level) {
     return weight;
 }
 
+*/
 
 int AMG::apply_prolungation_operator(int level){
     int nn = x_levels[level].size(); //we start to interpolate from level n-1
@@ -244,17 +262,21 @@ int AMG::apply_prolungation_operator(int level){
             temp += 1;
         } else{
             //x_levels[level][i] = 0.0;
+            double sum = 0.0;
             temp1 = 0;
             for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
                 size_t j = neighbor.first;
                 if(mask_nodes[level][j] == 0){
                     //std::cout<<"for cicle "<< j << " " << x_levels[level+1][temp1] << " " << mask_nodes[level][j] << std::endl;
                     weight_ij = compute_weight(i,j,level);
+                    std::cout<<"weight_ij: "<< weight_ij <<std::endl;
                     //std::cout<<"after weight"<<std::endl;
-                    x_levels[level][i] += weight_ij * x_levels[level+1][temp1];
+                    sum += weight_ij * x_levels[level+1][temp1];
+                    //x_levels[level][i] += weight_ij * x_levels[level+1][temp1];
                     temp1++;
                 }
             }
+            x_levels[level][i] += sum; 
         }
     }
 
@@ -287,19 +309,28 @@ int AMG::apply_smoother_operator(int level, int iter_number){
 int AMG::apply_AMG(){
 
     // TODO : implement the AMG algorithm. This class is the main class of the algorithm
-    std::cout << "PRE-SMOOTHING" << std::endl;
-    apply_smoother_operator(0, 10);
-    std::cout << "COARSENING" << std::endl;
-    apply_restriction_operator(1);  // from 0 to 1
-    // print_strong_connections(0);
-    // print_x_levels(1);  
-    // print_mask_nodes(0);
-    std::cout << "SOLUTION ON THE COARSE GRID" << std::endl;
-    apply_smoother_operator(1, 50); // Does not work yet
-    std::cout << "PROLONGATION" << std::endl;
-    apply_prolungation_operator(0);
-    std::cout << "POST-SMOOTHING" << std::endl;
-    apply_smoother_operator(0, 10);
+    for (int i = 0; i < number_of_levels - 1; ++i)
+    {
+        std::cout << "Applying AMG on level " << i << std::endl;
+        std::cout << "PRE-SMOOTHING" << std::endl;
+        apply_smoother_operator(i, 200);
+        std::cout << "COARSENING" << std::endl;
+        apply_restriction_operator(i+1);  // from 0 to 1
+        //print_strong_connections(i);
+        // print_x_levels(1);  
+        // print_mask_nodes(0);
+    }
+    std::cout << "solution on course grid" << std::endl;
+    apply_smoother_operator(number_of_levels - 1, 10);
+
+    std::cout << "PROLUNGATION AND POST-SMOOTHING" << std::endl;
+    for(int i = number_of_levels - 2; i >= 0; --i){
+        std::cout << "PROLONGATION ON LEVEL " << i << std::endl;
+        apply_prolungation_operator(i);
+        std::cout << "POST-SMOOTHING level: " << i << std::endl;
+        apply_smoother_operator(i, 10);
+    }
+    std::cout << "AMG applied successfully!" << std::endl;
     return 0;
 }
 
@@ -344,7 +375,7 @@ void AMG::print_x_levels(int level){
     std::cout << std::endl;
 }
 
-
+/*
 void AMG::print_mask_nodes(int level){
     if (level < 0 || level >= mask_nodes.size()) {
         std::cerr << "Invalid level: " << level << std::endl;
@@ -356,6 +387,22 @@ void AMG::print_mask_nodes(int level){
     {
         std::cout << mask_nodes[level][i] << " ";
         
+    }
+    std::cout << std::endl;
+}
+    */
+
+void AMG::print_mask_nodes(int level) {
+    if (level < 0 || level >= mask_nodes.size()) {
+        std::cerr << "Invalid level: " << level << std::endl;
+        return;
+    }
+    std::cout << "Coarse nodes (C=coarse, F=fine) at level " << level << ": ";
+    for (size_t i = 0; i < mask_nodes[level].size(); ++i) {
+        if (mask_nodes[level][i] == 0)
+            std::cout << "C ";
+        else
+            std::cout << "F ";
     }
     std::cout << std::endl;
 }

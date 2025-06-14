@@ -159,8 +159,12 @@ int main()
 
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
 
-    AMG amg(A_temp, sol, 1, rhs);
+    AMG amg(A_temp, sol, 10, rhs);
     amg.apply_AMG();
+    /*
+    for (int l = 0; l < 3; ++l) {
+        amg.print_mask_nodes(l);
+}*/
 
     // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
     //std::vector<bool> result = AMGV4<double>(A); // Specify template type
