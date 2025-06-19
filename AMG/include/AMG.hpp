@@ -46,7 +46,7 @@ class AMG
         }
 
 
-        void value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level);
+        bool value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level, int &tot_strong_connections);
         double evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI );
         int apply_AMG();
         int apply_smoother_operator(int level, int iter_number);
@@ -54,6 +54,7 @@ class AMG
         void print_CSRmatrix(int level);
         void print_x_levels(int level);
         void print_mask_nodes(int level);
+
         std::vector<std::vector<bool>> get_strong_connections(int level) {
             return tot_strong_connections[level];
         }
@@ -71,6 +72,7 @@ class AMG
         int apply_restriction_operator(int level);
         int apply_prolungation_operator(int level);
         double compute_weight(int i, int j, int level);
+        double compute_weight_real(int i, int j, int level);
         
         size_t number_of_levels;
 

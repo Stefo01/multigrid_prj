@@ -17,7 +17,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
 int main()
 {    
     TriangularMesh mesh;
-    mesh.import_from_msh("../mesh/mesh1.msh");
+    mesh.import_from_msh("../mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -109,7 +109,7 @@ int main()
                             alpha_integral *                              // integral of alpha on the element
                             (gradients[i][0] * gradients[j][0] + 
                             gradients[i][1] * gradients[j][1]) / 3;
-                                              
+                                  std::cout<<std::endl;            
                     }
                 }
 
@@ -159,7 +159,7 @@ int main()
 
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
 
-    AMG amg(A_temp, sol, 10, rhs);
+    AMG amg(A_temp, sol, 3, rhs);
     amg.apply_AMG();
     /*
     for (int l = 0; l < 3; ++l) {

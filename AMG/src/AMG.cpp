@@ -1,8 +1,9 @@
 #include "AMG.hpp"
 
-void AMG::value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level){
+bool AMG::value_strong_connections(const size_t elementI, std::vector<bool> &Ret, int level, int &tot_strong_connections){
 
     double max = 0.0;
+    bool valid = false;
     std::vector<std::pair<size_t, double> > NonZR = levels_matrix[level]->nonZerosInRow(elementI);
 
     for(std::pair<size_t, double> el : NonZR)
@@ -15,10 +16,14 @@ void AMG::value_strong_connections(const size_t elementI, std::vector<bool> &Ret
     {
         if( el.first != elementI && std::abs(el.second) >= EPSILON*max)
         {
+            
             Ret[el.first] = 1;
+            tot_strong_connections+=1;
+            if (!valid)
+                valid = true;
         }
-        
     }
+    return valid;
 }
 
 double AMG::evaluate_node(std::vector<std::vector<double>> allNodes, std::vector<double> V, size_t elementI ){
@@ -44,25 +49,24 @@ int AMG::apply_restriction_operator(int level){
     int nn = levels_matrix[level-1]->rows();
 
     std::vector<std::vector<bool>> strong_connections_temp(nn, std::vector<bool>(nn, 0));
-    
+    std::vector<int> all_nodes_not_yet_selected(nn);
+
+    bool continue_AMG = false;
+    bool temp_AMG;
     for(int i = 0; i< nn; i++){
-        value_strong_connections(i, strong_connections_temp[i], level-1); 
+        temp_AMG = value_strong_connections(i, strong_connections_temp[i], level-1, all_nodes_not_yet_selected[i]); 
+        if(!continue_AMG)
+            continue_AMG = temp_AMG;
     }
+
+    if (!continue_AMG)
+        return 1;
+
     tot_strong_connections.push_back(strong_connections_temp);
     std::cout<<"Strong connection matrix setted for level "<< level <<std::endl;
 
-    std::vector<int> all_nodes_not_yet_selected(nn);
-
-    for(int i = 0; i< nn; i++){
-        for (int j = 0; j< nn; j++){
-            if (strong_connections_temp[i][j]){
-                all_nodes_not_yet_selected[i] += 1;
-            }
-        }
-    }
 
     std::vector<bool> mask_nodes_temp(nn, false);
-
     bool GoOn = true;
     size_t index = getRandomInit(nn);
 
@@ -98,7 +102,6 @@ int AMG::apply_restriction_operator(int level){
         if (all_nodes_not_yet_selected[index]) {
             GoOn = true;
         } else {
-            std::cout << "Vector is empty!" << std::endl;
             break;
         }
     }
@@ -122,17 +125,49 @@ int AMG::apply_restriction_operator(int level){
         }
     }
 
-    Matrix new_matrix(conter_new_mat, conter_new_mat);
+    std::vector<std::vector<double>> P_mat (nn, std::vector<double>(conter_new_mat)); // n x m
 
+    
+    int rows_cnt = 0;
+
+    std::cout<< "Matrix P is " << std::endl;
+    for(int i = 0; i < nn; ++i){
+        if (mask_nodes_temp[i] == 0){
+            P_mat[i][rows_cnt] = 1.0;
+            rows_cnt++;
+            for(int j = 0; j < conter_new_mat; ++j){
+                std::cout<< P_mat[i][j] << " ";
+            }
+        } else {
+            for(int j = 0; j < conter_new_mat; ++j){
+                P_mat[i][j] = compute_weight_real(i,j,level - 1);
+                std::cout<< P_mat[i][j] << " ";
+            }
+        }
+        std::cout<<std::endl;
+    }
+    std::cout<<std::endl;
+
+
+    
     int i_rows_temp = 0;
     int j_cols_temp = 0;
+
+    Matrix new_matrix(conter_new_mat, conter_new_mat);
+
+    
     for (int i = 0; i<nn; i++)
     {
         if (mask_nodes_temp[i] == 0)
         {
             for (int j = 0; j < nn; j++){
                 if (mask_nodes_temp[j] == 0){
-                    new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level-1]->coeff(i, j);
+                    if (i != j){
+                        double weight_ij = compute_weight_real(i,j,level - 1);
+                        new_matrix.at(i_rows_temp, j_cols_temp) = weight_ij;
+                    } else {
+                        new_matrix.at(i_rows_temp, j_cols_temp) = levels_matrix[level-1]->coeff(i, j);
+                    }
                     j_cols_temp++;
                 }
             }
@@ -164,23 +199,22 @@ double AMG::compute_weight(int i, int j, int level) {
             sum += std::abs(levels_matrix[level]->coeff(i, k));
         }
     }
-    std::cout << "a_ij: " << a_ij << ", sum: " << sum << std::endl;
+    //std::cout << "a_ij: " << a_ij << ", sum: " << sum << std::endl;
 
     if (std::abs(sum) < 1e-12) return 0.0; // evita divisione per zero
     return -a_ij / sum;
 }
 
-/*
-double AMG::compute_weight(int i, int j, int level) {
-    double a_ij = levels_matrix[level]->coeff(i, j);
-    double weight = 0.0;
+
+double AMG::compute_weight_real(int i, int j, int level) {
+    double weight = 0.0; // final result
     double sum_weak = 0.0;
     double sum_strong = 0.0;
     double a_ik, a_kj, a_km, a_kk, denominator;
     double a_sign_km,a_sign_kj,sum_a_sign_km; //these to manage sign 
-    size_t nn = levels_matrix[level]->rows();
     
-
+    // start computation
+    double a_ij = levels_matrix[level]->coeff(i, j);
     // 1) Compute den: a_ij + sum of weak connections
     for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
         size_t k = neighbor.first;
@@ -208,36 +242,23 @@ double AMG::compute_weight(int i, int j, int level) {
     //}
     for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
         size_t k = neighbor.first;
-        if (tot_strong_connections[level][i][k] == 1 && k != i) { // Strong connections
+        if (tot_strong_connections[level][i][k] && k != i) { // Strong connections
             a_ik = levels_matrix[level]->coeff(i, k);
             a_kj = levels_matrix[level]->coeff(k, j);
             a_kk = levels_matrix[level]->coeff(k, k);
-
-            // Compute a_sign_kj (as written in paper)
-            a_sign_kj;
-            if ((a_kj >= 0 && a_kk >= 0) || (a_kj <= 0 && a_kk <= 0)) {
-                a_sign_kj = 0.0; //with same sign we ignore it
-            } else {
-                a_sign_kj = a_kj;//with different sign we use it
-            }
 
             // Somma a_sign_km on all course nodes
             sum_a_sign_km = 0.0;
             for (const auto &m_neighbor : levels_matrix[level]->nonZerosInRow(k)) {
                 size_t m = m_neighbor.first;
                 if (mask_nodes[level][m] == 0) { // m is course node
-                    a_km = levels_matrix[level]->coeff(k, m);
-                    if ((a_km >= 0 && a_kk >= 0) || (a_km <= 0 && a_kk <= 0)) {
-                        a_sign_km = 0.0;
-                    } else {
-                        a_sign_km = a_km;
-                    }
-                    sum_a_sign_km += a_sign_km;
+                    sum_a_sign_km += levels_matrix[level]->coeff(k, m);//a_sign_km;
                 }
             }
 
             if (std::abs(sum_a_sign_km) > 1e-12) {
-                sum_strong += a_ik * (a_sign_kj / sum_a_sign_km);
+                //sum_strong += a_ik * (a_sign_kj / sum_a_sign_km);
+                sum_strong += a_ik * (a_kj / sum_a_sign_km);
             }
         }
     }
@@ -247,7 +268,6 @@ double AMG::compute_weight(int i, int j, int level) {
     return weight;
 }
 
-*/
 
 int AMG::apply_prolungation_operator(int level){
     int nn = x_levels[level].size(); //we start to interpolate from level n-1
@@ -269,7 +289,7 @@ int AMG::apply_prolungation_operator(int level){
                 if(mask_nodes[level][j] == 0){
                     //std::cout<<"for cicle "<< j << " " << x_levels[level+1][temp1] << " " << mask_nodes[level][j] << std::endl;
                     weight_ij = compute_weight(i,j,level);
-                    std::cout<<"weight_ij: "<< weight_ij <<std::endl;
+                    //std::cout<<"weight_ij: "<< weight_ij <<std::endl;
                     //std::cout<<"after weight"<<std::endl;
                     sum += weight_ij * x_levels[level+1][temp1];
                     //x_levels[level][i] += weight_ij * x_levels[level+1][temp1];
@@ -309,22 +329,27 @@ int AMG::apply_smoother_operator(int level, int iter_number){
 int AMG::apply_AMG(){
 
     // TODO : implement the AMG algorithm. This class is the main class of the algorithm
-    for (int i = 0; i < number_of_levels - 1; ++i)
+    int i;
+    for (i = 0; i < number_of_levels; ++i)
     {
         std::cout << "Applying AMG on level " << i << std::endl;
         std::cout << "PRE-SMOOTHING" << std::endl;
-        apply_smoother_operator(i, 200);
+        apply_smoother_operator(i, 10);
         std::cout << "COARSENING" << std::endl;
-        apply_restriction_operator(i+1);  // from 0 to 1
+        int res = apply_restriction_operator(i+1);  // from 0 to 1
         //print_strong_connections(i);
         // print_x_levels(1);  
-        // print_mask_nodes(0);
+        //print_mask_nodes(i);
+        if (res == 1)
+            break;
     }
+    std::cout << "i is "<< i <<std::endl;
     std::cout << "solution on course grid" << std::endl;
-    apply_smoother_operator(number_of_levels - 1, 10);
+    apply_smoother_operator(i, 200);
+
 
     std::cout << "PROLUNGATION AND POST-SMOOTHING" << std::endl;
-    for(int i = number_of_levels - 2; i >= 0; --i){
+    for(i--; i >= 0; --i){
         std::cout << "PROLONGATION ON LEVEL " << i << std::endl;
         apply_prolungation_operator(i);
         std::cout << "POST-SMOOTHING level: " << i << std::endl;
