@@ -132,18 +132,22 @@ int AMG::apply_restriction_operator(int level){
 
     std::cout<< "Matrix P is " << std::endl;
     for(int i = 0; i < nn; ++i){
-        if (mask_nodes_temp[i] == 0){
-            P_mat[i][rows_cnt] = 1.0;
-            rows_cnt++;
-            for(int j = 0; j < conter_new_mat; ++j){
-                std::cout<< P_mat[i][j] << " ";
-            }
-        } else {
-            for(int j = 0; j < conter_new_mat; ++j){
-                P_mat[i][j] = compute_weight_real(i,j,level - 1);
-                std::cout<< P_mat[i][j] << " ";
-            }
+        for(int j = 0; j < conter_new_mat; ++j){
+            P_mat[i][j] = compute_weight_real(i,j,level - 1);
+            std::cout<< P_mat[i][j] << " ";
         }
+        // if (mask_nodes_temp[i] == 0){
+        //     P_mat[i][rows_cnt] = compute_weight_real(i, i, level - 1);
+        //     rows_cnt++;
+        //     for(int j = 0; j < conter_new_mat; ++j){
+        //         std::cout<< P_mat[i][j] << " ";
+        //     }
+        // } else {
+        //     for(int j = 0; j < conter_new_mat; ++j){
+        //         P_mat[i][j] = compute_weight_real(i,j,level - 1);
+        //         std::cout<< P_mat[i][j] << " ";
+        //     }
+        // }
         std::cout<<std::endl;
     }
     std::cout<<std::endl;
@@ -212,29 +216,30 @@ double AMG::compute_weight_real(int i, int j, int level) {
     double sum_strong = 0.0;
     double a_ik, a_kj, a_km, a_kk, denominator;
     double a_sign_km,a_sign_kj,sum_a_sign_km; //these to manage sign 
-    
+    //std::cout << "Computing weight for nodes (" << i << ", " << j << ") at level " << level << std::endl;
     // start computation
     double a_ij = levels_matrix[level]->coeff(i, j);
     // 1) Compute den: a_ij + sum of weak connections
     for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
         size_t k = neighbor.first;
-        if (tot_strong_connections[level][i][k] == 0 && k != i) { // Weak connections
+        if (tot_strong_connections[level][i][k] == 0 && mask_nodes[level][k] == 0 && k != i) { // Weak connections
             a_ik = levels_matrix[level]->coeff(i, k);
             sum_weak += a_ik;
+            //std::cout << "Weak connection: a_ik = " << a_ik << " at node (" << i << "," << k << ")" << "sum of weak"<<sum_weak << std::endl;
         }
     }
-
     denominator = a_ij + sum_weak;
     //just to check den value 
     if (std::abs(denominator) < 1e-12) {
         //std::cerr << "Warning: Denominator very small at node (" << i << "," << j << ")" << std::endl;
-        denominator = (denominator >= 0) ? 1e-12 : -1e-12; // mantieni segno corretto
+        //::cout << "Warning: Denominator very small at node (" << i << "," << j << "), setting to a small value." << std::endl;
+        denominator = (denominator <= 0) ? 1e-12 : -1e-12; // mantieni segno corretto
     }
 
     // 2) a_ij:
     sum_strong += a_ij;
 
-    // 3) strong connections:
+      // 3) strong connections:
     //for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i))
     //{
     //    size_t = k = neighbor.first;
@@ -242,32 +247,47 @@ double AMG::compute_weight_real(int i, int j, int level) {
     //}
     for (const auto &neighbor : levels_matrix[level]->nonZerosInRow(i)) {
         size_t k = neighbor.first;
-        if (tot_strong_connections[level][i][k] && k != i) { // Strong connections
+        
+        if (tot_strong_connections[level][i][k] == 1 && mask_nodes[level][k] == 1 && k != i) { // Strong connections
             a_ik = levels_matrix[level]->coeff(i, k);
             a_kj = levels_matrix[level]->coeff(k, j);
             a_kk = levels_matrix[level]->coeff(k, k);
+
+            // Compute a_sign_kj (as written in paper)
+            a_sign_kj;
+            if ((a_kj >= 0 && a_kk >= 0) || (a_kj <= 0 && a_kk <= 0)) {
+                a_sign_kj = 0.0; //with same sign we ignore it
+            } else {
+                a_sign_kj = a_kj;//with different sign we use it
+            }
 
             // Somma a_sign_km on all course nodes
             sum_a_sign_km = 0.0;
             for (const auto &m_neighbor : levels_matrix[level]->nonZerosInRow(k)) {
                 size_t m = m_neighbor.first;
                 if (mask_nodes[level][m] == 0) { // m is course node
-                    sum_a_sign_km += levels_matrix[level]->coeff(k, m);//a_sign_km;
+                    a_km = levels_matrix[level]->coeff(k, m);
+                    if ((a_km >= 0 && a_kk >= 0) || (a_km <= 0 && a_kk <= 0)) {
+                        a_sign_km = 0.0;
+                    } else {
+                        a_sign_km = a_km;
+                    }
+                    sum_a_sign_km += a_sign_km;
                 }
             }
 
             if (std::abs(sum_a_sign_km) > 1e-12) {
-                //sum_strong += a_ik * (a_sign_kj / sum_a_sign_km);
-                sum_strong += a_ik * (a_kj / sum_a_sign_km);
+                //std::cout << "a_sign_km: " << a_sign_km << ", sum_a_sign_km: " << sum_a_sign_km << std::endl;
+                sum_strong += a_ik * (a_sign_kj / sum_a_sign_km);
             }
         }
     }
 
     // 4) Computing final weight
-    weight = - (sum_strong) / denominator;
+    //std::cout << "sum_strong: " << sum_strong << ", denominator: " << denominator << std::endl;
+    weight =  -(sum_strong) / denominator;
     return weight;
-}
-
+}              
 
 int AMG::apply_prolungation_operator(int level){
     int nn = x_levels[level].size(); //we start to interpolate from level n-1
@@ -280,7 +300,7 @@ int AMG::apply_prolungation_operator(int level){
         if(mask_nodes[level][i] == 0){
             x_levels[level][i] += x_levels[level+1][temp] ; //just to copy the value
             temp += 1;
-        } else{
+        } else{ 
             //x_levels[level][i] = 0.0;
             double sum = 0.0;
             temp1 = 0;
