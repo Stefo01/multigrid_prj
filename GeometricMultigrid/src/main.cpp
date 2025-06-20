@@ -1,16 +1,10 @@
 #include "allIncludes.hpp"
 
-template <typename T>
-void printVector(std::vector<T> result){
-    std::cout << "Vector elements: ";
-    for (int i : result) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
-}
+
 
 int main(int argc, char** argv)
 {
+    /*
     size_t size = 25;
     double alpha = 1.;
     double width = 10.0;
@@ -31,7 +25,7 @@ int main(int argc, char** argv)
 
     std::vector<double> a =  M.valueStrongConnection(80,1);
     printVector(a);
-    /*
+    */
     
     // initialization of principal parameters from the user
     size_t size;
@@ -102,7 +96,7 @@ int main(int argc, char** argv)
     hist.push_back(RES.Norm());
     
     //Then we can start our iterations
-    int MaxIter = 20;
+    int MaxIter = 10000;
 
 
     switch (smoother)
@@ -155,6 +149,6 @@ int main(int argc, char** argv)
     //After solving the problem we can export the solution and the history
     Utils::saveVectorOnFile(hist,"MGGS4.txt");
     Utils::saveVectorOnFile(u,"x.mtx");
-    */
+    
     return 0;
 }

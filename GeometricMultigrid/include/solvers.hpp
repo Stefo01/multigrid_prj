@@ -2,7 +2,7 @@
 #define SOLVERS_H
 
 #include "allIncludes.hpp"
-#define TOL 1e-3
+#define TOL 1e-11
 
 namespace MultiGrid{
 

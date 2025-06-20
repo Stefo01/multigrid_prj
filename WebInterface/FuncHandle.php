@@ -1,7 +1,7 @@
 <?php
 
 // File path
-$filePath = '../src/utilities.cpp';
+$filePath = '../GeometricMultigrid/src/utilities.cpp';
 
 // Initialize variables
 $startReading = false;

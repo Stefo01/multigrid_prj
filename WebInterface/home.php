@@ -100,7 +100,7 @@
           $w = $_POST["width"];
           $test = $_POST["test_selection"];
           $smoot = $_POST["smoother"];
-          $output = shell_exec("./../Multigrid -n $N -a $a -w $w -ml $l -test $test -smt $smoot");
+          $output = shell_exec("./../GeometricMultigrid/build/Multigrid -n $N -a $a -w $w -ml $l -test $test -smt $smoot");
 
           
           if (stripos($output, 'Error:') !== false)
@@ -120,11 +120,11 @@
             $toStamp = substr($output, stripos($output, '||') + 2);
             echo "<h4>$toStamp</h4>";
             echo '<canvas  id="myChart" width="400" height="200"></canvas>';
-            echo '<a href="x.mtx" download="x.mtx" class="download-button">
+            echo '<a href="../GeometricMultigrid/build/x.mtx" download="../GeometricMultigrid/build/x.mtx" class="download-button">
                 Download solution file
             </a>';
 
-            echo '<a href="../MGGS4.txt" download="../MGGS4.txt" class="download-button">
+            echo '<a href="../GeometricMultigrid/build/MGGS4.txt" download="../GeometricMultigrid/build/MGGS4.txt" class="download-button">
                 Download convergence file
             </a>';
         }
@@ -136,7 +136,7 @@
     <script>
         // Function to fetch and parse the data
         async function fetchData() {
-            const response = await fetch('../MGGS4.txt'); // Fetch the data file
+            const response = await fetch('../GeometricMultigrid/build/MGGS4.txt'); // Fetch the data file
             const text = await response.text(); // Get the file content as text
 
             // Parse the text into an array of numbers
