@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     //ThirdOrderFE fe;
 
     TriangularMesh mesh(fe);
-    mesh.import_from_msh2("../mesh/mesh2.msh", fe);
+    mesh.import_from_msh("../mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " dofs and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -48,10 +48,6 @@ int main(int argc, char **argv)
         bool &element_on_boundary = fe.is_on_boundary();
         double element_area = fe.get_area();
 
-        double alpha_integral = element_area *
-            (alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
-            alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
-            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y));
              
         std::vector<Point> &quadrature_points = fe.get_quadrature_points();
         std::vector<double> &quadrature_weights = fe.get_quadrature_weights();
@@ -82,9 +78,14 @@ int main(int argc, char **argv)
                 }
                 //std::cout << "]" << std::endl;
 
-                rhs.at(local_dofs.at(i).set_index) += 
-                    forcing_term(local_dofs.at(i).x, local_dofs.at(i).y) *
-                    quadrature_weights.at(i);       // We can do this if quadrature points are dofs
+                for (size_t q = 0; q < quadrature_points.size(); ++q)
+                {
+                    rhs.at(local_dofs.at(i).set_index) += 
+                        forcing_term(local_dofs.at(i).x, local_dofs.at(i).y) *
+                        fe.get_basis_function(i)(quadrature_points.at(q)) * 
+                        quadrature_weights.at(q);
+                }
+                
 
             }
 
@@ -150,14 +151,6 @@ int main(int argc, char **argv)
 
     mesh.export_to_vtu(sol);
 
-
-    //for (const auto &element : mesh.element_iterators())
-    //{
-    //    std::cout << "[ ";
-    //    for (const auto &val : element)
-    //        std::cout << val << " ";
-    //    std::cout << "]" << std::endl;
-    //}
 
     return 0;
 }

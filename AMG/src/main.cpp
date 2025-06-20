@@ -30,92 +30,57 @@ int main()
     //Matrix B_temp(mesh.n_nodes() - mesh.n_b_nodes(), mesh.n_nodes());
     std::vector<double> rhs(mesh.n_nodes() - mesh.n_b_nodes());
 
-    for (const auto &element : mesh.get_elements_indexes())
+    for (const auto &element : mesh.element_iterators())
     {
-        bool element_on_boundary = false;
-        double element_area = fabs(
-            ((mesh.get_nodes()[element[1]].x * mesh.get_nodes()[element[2]].y) - 
-                (mesh.get_nodes()[element[2]].x * mesh.get_nodes()[element[1]].y)) +
-            ((mesh.get_nodes()[element[0]].y * mesh.get_nodes()[element[2]].x) - 
-                (mesh.get_nodes()[element[0]].x * mesh.get_nodes()[element[2]].y)) +
-            ((mesh.get_nodes()[element[0]].x * mesh.get_nodes()[element[1]].y) - 
-                (mesh.get_nodes()[element[0]].y * mesh.get_nodes()[element[1]].x))
-        );
-
-        double alpha_integral = element_area *
-            (alpha(mesh.get_nodes()[element[0]].x, mesh.get_nodes()[element[0]].y) + 
-            alpha(mesh.get_nodes()[element[1]].x, mesh.get_nodes()[element[1]].y) + 
-            alpha(mesh.get_nodes()[element[2]].x, mesh.get_nodes()[element[2]].y));
-            
-        std::array< std::array<double, 2>, 3> gradients;
-        
-        for (size_t i = 0; i < 3; ++i)
+        std::vector<Point> local_dofs(fe.get_ndofs());
+        for (int i = 0; i < local_dofs.size(); ++i)
         {
-            size_t j, k;
-
-            bool node_on_boundary = false;
-            if (mesh.get_nodes()[element[i]].is_on_boundary)
-            {
-                element_on_boundary = true;
-                node_on_boundary = true;
-            }
-
-            switch (i)
-            {
-            case 0:
-                j = 1;
-                k = 2;
-                break;
-            case 1:
-                j = 2;
-                k = 0;
-                break;     
-            default:
-                j = 0;
-                k = 1;
-                break;
-            }
-
-            std::array<double, 3> vj; 
-            vj[0] = mesh.get_nodes()[element[j]].x - mesh.get_nodes()[element[i]].x;
-            vj[1] = mesh.get_nodes()[element[j]].y - mesh.get_nodes()[element[i]].y;
-            vj[2] = - 1.0;
-
-            std::array<double, 3> vk; 
-            vk[0] = mesh.get_nodes()[element[k]].x - mesh.get_nodes()[element[i]].x;
-            vk[1] = mesh.get_nodes()[element[k]].y - mesh.get_nodes()[element[i]].y;
-            vk[2] = - 1.0;
-
-            // normal vector
-            std::array<double, 3> n_vec;
-            n_vec[0] = (vj[1] * vk[2]) - (vk[1] * vj[2]);
-            n_vec[1] = (vj[2] * vk[0]) - (vk[2] * vj[0]);
-            n_vec[2] = (vj[0] * vk[1]) - (vk[0] * vj[1]);
-
-            gradients[i][0] = - n_vec[0] / n_vec[2];
-            gradients[i][1] = - n_vec[1] / n_vec[2];
-
+            local_dofs.at(i) = mesh.get_nodes()[element.at(i)];
         }
-        for (size_t i = 0; i < 3; ++i)
+
+        fe.set_dofs(local_dofs);
+
+        bool &element_on_boundary = fe.is_on_boundary();
+        double element_area = fe.get_area();
+
+             
+        std::vector<Point> &quadrature_points = fe.get_quadrature_points();
+        std::vector<double> &quadrature_weights = fe.get_quadrature_weights();
+
+        std::vector<std::array<double, 2>> &gradients = fe.get_gradients();
+
+        for (size_t i = 0; i < local_dofs.size(); ++i)
         {
-            if (!mesh.get_nodes()[element[i]].is_on_boundary)
+            if (!local_dofs.at(i).is_on_boundary)
             {
-
-                for (size_t j = 0; j < 3; ++j)
+                //std::cout << "[ ";
+                for (size_t j = 0; j < local_dofs.size(); ++j)
                 {
-                    if (!mesh.get_nodes()[element[j]].is_on_boundary)
+                    //std::cout << fe.get_basis_function(i)(local_dofs.at(j)) << " ";
+                    if (!local_dofs.at(j).is_on_boundary)
                     {
-                        // still not implemented the quadrature rule 
-                        A_temp.at(mesh.get_nodes()[element[i]].set_index, mesh.get_nodes()[element[j]].set_index) += 
-                            alpha_integral *                              // integral of alpha on the element
-                            (gradients[i][0] * gradients[j][0] + 
-                            gradients[i][1] * gradients[j][1]) / 3;          
+                        for (size_t q = 0; q < quadrature_points.size(); ++q)
+                        {
+                            A_temp.at(local_dofs.at(i).set_index, local_dofs.at(j).set_index) += 
+                                alpha(quadrature_points.at(q).x, quadrature_points.at(q).y) *                              // integral of alpha on the element
+                                (gradients.at(i)[0] * gradients.at(j)[0] + 
+                                gradients.at(i)[1] * gradients.at(j)[1]) * quadrature_weights.at(q);
+                        }
+                                              
                     }
-                }
+                    
 
-                rhs.at(mesh.get_nodes()[element[i]].set_index) += 
-                    forcing_term(mesh.get_nodes()[element[i]].x, mesh.get_nodes()[element[i]].y) * 
-                    element_area / 3;               // volume of the corresponding tetrahedron
+                }
+                //std::cout << "]" << std::endl;
+
+                for (size_t q = 0; q < quadrature_points.size(); ++q)
+                {
+                    rhs.at(local_dofs.at(i).set_index) += 
+                        forcing_term(local_dofs.at(i).x, local_dofs.at(i).y) *
+                        fe.get_basis_function(i)(quadrature_points.at(q)) * 
+                        quadrature_weights.at(q);
+                }
+                
 
             }
 
@@ -123,21 +88,25 @@ int main()
         // Dirichlet boundary condition
         if (element_on_boundary)
         {
-            for (size_t i = 0; i < 3; ++i)
+            for (size_t i = 0; i < local_dofs.size(); ++i)
             {
-                if (!mesh.get_nodes()[element[i]].is_on_boundary)
+                if (!local_dofs.at(i).is_on_boundary)
                 {
                     // F - Bg
-                    for (size_t j = 0; j < 3; ++j)
+                    for (size_t j = 0; j < local_dofs.size(); ++j)
                     {
-                        if(mesh.get_nodes()[element[j]].is_on_boundary)
+                        if(local_dofs.at(j).is_on_boundary)
                         {
-
-                            rhs.at(mesh.get_nodes()[element[i]].set_index) -=
-                                boundary_function(mesh.get_nodes()[element[j]].x,
-                                    mesh.get_nodes()[element[j]].y) * alpha_integral *
-                                (gradients[i][0] * gradients[j][0] +
-                                gradients[i][1] * gradients[j][1]) / 3;
+                            for (size_t q = 0; q < quadrature_points.size(); ++q)
+                            {
+                                rhs.at(local_dofs.at(i).set_index) -=
+                                    boundary_function(local_dofs.at(j).x,
+                                        local_dofs.at(j).y) * 
+                                    alpha(quadrature_points.at(q).x, quadrature_points.at(q).y) *
+                                    (gradients[i][0] * gradients[j][0] +
+                                    gradients[i][1] * gradients[j][1]) * quadrature_weights.at(q);
+                            }
+                            
                         }
                     }
                 }

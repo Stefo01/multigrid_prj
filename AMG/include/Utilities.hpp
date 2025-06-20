@@ -128,7 +128,7 @@ class FiniteElement
 
         std::vector<Point> &get_quadrature_points() { return quadrature_points; }
 
-        std::function<double(Point)> &get_basis_function(const int &local_dof_index)
+        std::function<double(Point&)> &get_basis_function(const int &local_dof_index)
         {
             return basis_functions.at(local_dof_index);
         }
@@ -152,7 +152,7 @@ class FiniteElement
         std::vector<std::array<double, 2>> gradients;
         std::vector<Point> quadrature_points;
         std::vector<double> quadrature_weights;
-        std::vector<std::function<double(Point)>> basis_functions;
+        std::vector<std::function<double(Point&)>> basis_functions;
 
 };
 
@@ -240,25 +240,28 @@ class LinearFE : public FiniteElement
                 quadrature_points.at(i) = dofs->at(i);
                 quadrature_weights.at(i) = element_area / 3.0;
 
+                //double D = - n_vec[0] * dofs->at(i).x - n_vec[1] * dofs->at(i).y - n_vec[2] * 1.0;
+                
+                
+                double cx = n_vec[0] / n_vec[2];
+                double cy = n_vec[1] / n_vec[2];
+                double c0 = 1 - cx * dofs->at(i).x - cy * dofs->at(i).y;
+
+                basis_functions.at(i) = 
+                    [c0, cx, cy](Point &p)
+                    {
+                        return 2 - (c0 + cx * p.x + cy * p.y); 
+                    };
+                
+                
+                //std::function<double(Point&)> f = basis_functions.at(i);
+                //Point pi = dofs->at(i);
+                //Point pj = dofs->at(j);
+                //Point pk = dofs->at(k);
+                //std::cout << f(pi) << " " << f(pj) << " " << f(pk) << std::endl;
 
             }
 
-            // Set basis functions
-            for (int i = 0; i < 3; ++i)
-            {
-                double A = (dofs->at(1).y - dofs->at(0).y) * (0 - 1) -
-                    (dofs->at(2).y - dofs->at(0).y) * (0 - 1);
-                double B = (dofs->at(2).x - dofs->at(0).x) * (0 - 1) -
-                    (dofs->at(1).x - dofs->at(0).x) * (0 - 1);
-                double C = (dofs->at(1).x - dofs->at(0).x) * (dofs->at(2).y - dofs->at(0).y) -
-                    (dofs->at(1).y - dofs->at(0).y) * (dofs->at(2).x - dofs->at(0).x);
-                double D = - A * dofs->at(i).x - B * dofs->at(i).y - C * 1;
-
-                basis_functions.at(i) = [&A, &B, &C, &D](Point p) 
-                {
-                    return (D - A * p.x - B * p.y) / C;
-                };
-            }
         }
 };
 
@@ -333,11 +336,11 @@ class ThirdOrderFE : public FiniteElement
 class TriangularMesh
 {
     public:
-        TriangularMesh(FiniteElement &fe_) : fe_temp(fe_)
+        TriangularMesh(FiniteElement &fe_) : fe(fe_)
         {}
 
         void import_from_msh(const std::string &mesh_file_name);
-        void import_from_msh2(const std::string &mesh_file_name, FiniteElement &fe);
+        void import_from_msh2(const std::string &mesh_file_name);
         void export_to_vtu(const std::vector<double> &sol);
 
         const size_t n_nodes() const { return nodes.size(); }
@@ -423,7 +426,7 @@ class TriangularMesh
 
         ElementIterable element_iterators()
         {
-            return ElementIterable(test_indices.get(), fe_temp.get_ndofs(), n_elements());
+            return ElementIterable(test_indices.get(), fe.get_ndofs(), n_elements());
         }
 
     private:
@@ -432,7 +435,7 @@ class TriangularMesh
         std::vector< std::array<int, 3> > element_indexes;
         std::unique_ptr<int[]> test_indices;
         size_t num_boundary_nodes;
-        FiniteElement &fe_temp;
+        FiniteElement &fe;
         int num_elements;
 };
 
