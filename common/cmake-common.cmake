@@ -15,8 +15,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 # Locate MPI compiler
-find_package(MPI REQUIRED)
-set(CMAKE_CXX_COMPILER "${MPI_CXX_COMPILER}")
+#find_package(MPI REQUIRED)
+#set(CMAKE_CXX_COMPILER "${MPI_CXX_COMPILER}")
+
+set(CMAKE_CXX_COMPILER "clang++")
 
 # add here include directories
 

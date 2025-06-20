@@ -16,7 +16,8 @@ std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
 
 int main()
 {    
-    TriangularMesh mesh;
+    LinearFE fe;
+    TriangularMesh mesh(fe);
     mesh.import_from_msh("../mesh/mesh-corner.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
