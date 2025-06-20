@@ -54,6 +54,8 @@ class AMG
         void print_CSRmatrix(int level);
         void print_x_levels(int level);
         void print_mask_nodes(int level);
+        bool is_connected(int i, int j, int level);
+        double compute_residual(int level);
 
         std::vector<std::vector<bool>> get_strong_connections(int level) {
             return tot_strong_connections[level];
@@ -68,7 +70,7 @@ class AMG
         }
 
     private:
-    
+        
         int apply_restriction_operator(int level);
         int apply_prolungation_operator(int level);
         double compute_weight(int i, int j, int level);
@@ -81,6 +83,7 @@ class AMG
         std::vector<std::unique_ptr<CSRMatrix>>     levels_matrix;              // for each level, we'll save also the solution matrix                
         std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
         std::vector<std::vector<double>>            rhs;
+        std::vector<std::vector<std::vector<double>>> P_matrices;
 };
 
 #endif
