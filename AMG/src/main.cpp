@@ -130,7 +130,7 @@ int main()
 
     AMG amg(A_temp, sol, 1, rhs);
     amg.apply_AMG();
-    amg.print_mask_nodes(0);
+    //amg.print_mask_nodes(0);
 
     /*
     for (int l = 0; l < 3; ++l) {

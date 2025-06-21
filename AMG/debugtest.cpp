@@ -1,6 +1,7 @@
 #include <iostream>
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
+#include "AMG.hpp"
 
 
 
@@ -12,7 +13,7 @@ int main(int argc, char **argv)
     //ThirdOrderFE fe;
 
     TriangularMesh mesh(fe);
-    mesh.import_from_msh("../mesh/mesh2.msh");
+    mesh.import_from_msh("../mesh/mesh-pipe.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " dofs and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -29,10 +30,7 @@ int main(int argc, char **argv)
 
     std::cout << "Initializing the matrix" << std::endl;
     Matrix A_temp(mesh.n_nodes() - mesh.n_b_nodes(), mesh.n_nodes() - mesh.n_b_nodes());
-    //Matrix B_temp(mesh.n_nodes() - mesh.n_b_nodes(), mesh.n_nodes());
     std::vector<double> rhs(mesh.n_nodes() - mesh.n_b_nodes());
-
-
 
     
     for (const auto &element : mesh.element_iterators())
@@ -139,14 +137,20 @@ int main(int argc, char **argv)
 
     Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
-    //std::cout << sol << std::endl;
     std::cout << " " << std::endl;
-    //A.print();
-    //B.print();
 
-    for (int i = 0; i < 5000; ++i)
+    //for (int i = 0; i < 5000; ++i)
+    //{
+    //    sol * GS;
+    //}
+
+    RestrictionOperator R;
+    std::vector<unsigned char> coarse_mask(sol.size(), 0);
+    R.select_coarse_nodes(A, coarse_mask);
+
+    for (size_t i = 0; i < sol.size(); ++i)
     {
-        sol * GS;
+        sol.at(i) = (coarse_mask.at(i) & 0xF0) ? 0.0 : 1.0;
     }
 
     mesh.export_to_vtu(sol);

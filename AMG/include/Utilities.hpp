@@ -106,16 +106,10 @@ class FiniteElement
             return *dofs;
         }
 
-        virtual std::vector<Point> get_virtual_dofs() { return {}; }
+        virtual std::vector<Point> get_virtual_dofs() = 0;
 
         std::vector<double> &get_quadrature_weights() { return quadrature_weights; }
 
-        virtual std::array<double, 3> &get_normal_vector(const int &local_dof_index) 
-        { 
-            return normal_vectors.at(local_dof_index); 
-        }
-
-        virtual std::array<double, 2> get_gradient(const int &local_dof_index) { return {}; }
 
         std::vector<std::array<double, 2>> &get_gradients() { return gradients; }
 
@@ -148,7 +142,6 @@ class FiniteElement
         const std::vector<Point> *dofs;
         double element_area;
         bool element_on_boundary;
-        std::vector<std::array<double, 3>> normal_vectors;
         std::vector<std::array<double, 2>> gradients;
         std::vector<Point> quadrature_points;
         std::vector<double> quadrature_weights;
@@ -161,7 +154,6 @@ class LinearFE : public FiniteElement
     public:
         LinearFE() : FiniteElement(1)
         {
-            normal_vectors.resize(3);
             gradients.resize(3);
             quadrature_points.resize(3);
             quadrature_weights.resize(3);
@@ -171,6 +163,11 @@ class LinearFE : public FiniteElement
         ~LinearFE()
         {
 
+        }
+
+        std::vector<Point> get_virtual_dofs() 
+        {
+            return {};
         }
 
         void set_dofs(const std::vector<Point> &dofs_)
@@ -254,11 +251,6 @@ class LinearFE : public FiniteElement
                     };
                 
                 
-                //std::function<double(Point&)> f = basis_functions.at(i);
-                //Point pi = dofs->at(i);
-                //Point pj = dofs->at(j);
-                //Point pk = dofs->at(k);
-                //std::cout << f(pi) << " " << f(pj) << " " << f(pk) << std::endl;
 
             }
 
