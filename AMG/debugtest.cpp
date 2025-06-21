@@ -127,15 +127,15 @@ int main(int argc, char **argv)
     std::cout << "There are " << A_temp.non_zeros() << " non zero elements." << std::endl;
     
     std::cout << "Compressing the matrix..." << std::endl;
-    CSRMatrix A(A_temp);
+    //CSRMatrix A(A_temp);
     //CSRMatrix B(B_temp);
-    A.copy_from(A_temp);
+    //A.copy_from(A_temp);
 
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
 
-    Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
+    //Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
     std::cout << " " << std::endl;
 
@@ -144,48 +144,45 @@ int main(int argc, char **argv)
     //    sol * GS;
     //}
 
-    // 1 level amg
+
+
+
+    std::vector<std::unique_ptr<CSRMatrix>> system_matrices;
+    std::vector<std::unique_ptr<CSRMatrix>> prolongation_matrices;
+    int amg_levels = 4;
+    std::unique_ptr<CSRMatrix> tmp = std::make_unique<CSRMatrix>(A_temp);
+    tmp->copy_from(A_temp);
+
+    system_matrices.push_back(std::move(tmp));
     RestrictionOperator R;
-    std::vector<unsigned char> coarse_mask(sol.size(), 0);
-    size_t num_coarse = R.select_coarse_nodes(A, coarse_mask);
 
-    std::cout << "There are " << num_coarse << " coarse nodes!" << std::endl;
-
-    std::vector<size_t> component_mask;
-    std::map<size_t, size_t> reversed_component_mask;
-    R.build_component_mask(coarse_mask, component_mask, num_coarse, reversed_component_mask);
-
-    std::unique_ptr<CSRMatrix> P;
-    R.build_prolongation_matrix(A, P, component_mask, coarse_mask, reversed_component_mask);
-
-    std::cout << "P size : " << (P->rows()) << " x " << (P->cols()) << std::endl;
-
-    std::unique_ptr<CSRMatrix> Ac;
-    R.build_coarse_matrix(A, *P, Ac);
-
-    std::vector<double> sol1(Ac->rows());
-
-    // 2 level amg
-    std::vector<unsigned char> coarse_mask2(sol1.size(), 0);
-    size_t num_coarse2 = R.select_coarse_nodes(*Ac, coarse_mask2);
-    
-    std::cout << "There are " << num_coarse2 << " coarse nodes!" << std::endl;
-
-
-    for (size_t i = 0; i < sol.size(); ++i)
+    for (int level = 1; level < amg_levels; ++level)
     {
-        //sol.at(i) = (coarse_mask.at(i) & 0xC0) ? 1.0 : 0.0;
-        if (coarse_mask.at(i) & 0xC0)
-        {
-            sol.at(i) = -1.0;
-        }
-        else
-        {
-            if (coarse_mask2.at(reversed_component_mask[i]) & 0xC0)
-                sol.at(i) = 1.0;
-            else
-                sol.at(i) = 0.0;
-        }
+        std::vector<unsigned char> coarse_mask(system_matrices.at(level - 1)->rows(), 0);
+        size_t num_coarse = R.select_coarse_nodes(*system_matrices.at(level - 1), coarse_mask);
+
+        std::cout << "There are " << num_coarse << " coarse nodes at level " 
+            << level << std::endl;
+        
+        std::vector<size_t> component_mask;
+        std::map<size_t, size_t> reversed_component_mask;
+        R.build_component_mask(coarse_mask, component_mask, num_coarse, reversed_component_mask);
+
+        std::unique_ptr<CSRMatrix> P;
+        R.build_prolongation_matrix
+        (
+            *system_matrices.at(level - 1), P, 
+            num_coarse, coarse_mask, 
+            reversed_component_mask
+        );
+
+        std::cout << "P size : " << (P->rows()) << " x " << (P->cols()) << std::endl;
+
+        std::unique_ptr<CSRMatrix> Ac;
+        R.build_coarse_matrix(*system_matrices.at(level - 1), *P, Ac);
+
+        prolongation_matrices.push_back(std::move(P));
+        system_matrices.push_back(std::move(Ac));
     }
 
     mesh.export_to_vtu(sol);

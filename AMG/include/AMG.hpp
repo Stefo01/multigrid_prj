@@ -223,17 +223,19 @@ class RestrictionOperator
         }
 
 
+        //void change_component_mask_level
+
 
         void build_prolongation_matrix
         (
             CSRMatrix &current_matrix,
             std::unique_ptr<CSRMatrix> &P,
-            std::vector<size_t> &component_mask,
+            size_t &coarse_size,
             std::vector<unsigned char> &coarse_mask,
             std::map<size_t, size_t> &reversed_component_mask
         )
         {
-            Matrix temporary_p_matrix(current_matrix.rows(), component_mask.size());
+            Matrix temporary_p_matrix(current_matrix.rows(), coarse_size);
             
             for (size_t i = 0; i < current_matrix.rows(); ++i)
             {
@@ -330,8 +332,10 @@ class RestrictionOperator
             PtA_temp.count_non_zeros();
             //std::cout << "PtA non zeros : " << PtA_temp.non_zeros() << std::endl;
 
+            //std::cout << "Start matrix compression" << std::endl;
             CSRMatrix PtA(PtA_temp);
             PtA.copy_from(PtA_temp);
+            //std::cout << "Matrix compressed" << std::endl;
 
             Matrix Ac(P.cols(), P.cols());
             
@@ -355,9 +359,10 @@ class RestrictionOperator
             }
             Ac.count_non_zeros();
 
+            //std::cout << "Start matrix compression" << std::endl;
             coarse_matrix = std::make_unique<CSRMatrix>(Ac);
             coarse_matrix->copy_from(Ac);
-
+            //std::cout << "Matrix compressed" << std::endl;
         }
         
 
