@@ -4,28 +4,6 @@
 
 int main(int argc, char** argv)
 {
-    /*
-    size_t size = 25;
-    double alpha = 1.;
-    double width = 10.0;
-    int levels = 1;
-
-    std::vector<MultiGrid::SquareDomain> domains;
-    for(int i = 0; i < levels; i++){
-        domains.push_back(MultiGrid::SquareDomain(size,width,i));
-    }
-    
-    //Then we can create the matrices
-    std::vector<MultiGrid::PoissonMatrix<double>> matrici;
-    for(auto &domain : domains){
-        matrici.push_back(MultiGrid::PoissonMatrix<double>(domain,alpha));
-    }
-
-    MultiGrid::AMG M(matrici[0], 0.25);
-
-    std::vector<double> a =  M.valueStrongConnection(80,1);
-    printVector(a);
-    */
     
     // initialization of principal parameters from the user
     size_t size;
@@ -95,13 +73,12 @@ int main(int argc, char** argv)
     u * RES;
     hist.push_back(RES.Norm());
     
-    //Then we can start our iterations
-    int MaxIter = 10000;
+    //You can finetune this parameter
+    int MaxIter = 1000;
 
 
     switch (smoother)
     {
-
         case Gauss_Siedel:
             std::cout<<"GS iters"<<std::endl;   
             for(int i = 0; i < MaxIter; i++){
