@@ -33,7 +33,7 @@ class Matrix
         const size_t non_zeros(){ return num_non_zeros; }
         const size_t rows(){ return n_rows; }
         const size_t cols(){ return n_cols; }
-        const std::vector< std::map<size_t, double> > &data()
+        std::vector< std::map<size_t, double> > &data()
         { return non_zero_cells; }
 
         void print()

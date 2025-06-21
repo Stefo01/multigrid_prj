@@ -18,7 +18,7 @@
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
 
-constexpr double EPSILON = 0.3;
+constexpr double EPSILON = 0.2;
 
 
 // matrix A is the correspondence of the connections of a graph, aij represent the edje between node i and j. So, if the connection exist, 
@@ -110,15 +110,18 @@ class RestrictionOperator
                 if (row == pair.first)
                     continue;
                 
-                if (max_value < - pair.second)
-                    max_value = - pair.second;
+                if (max_value < std::abs(pair.second))
+                    max_value =  std::abs(pair.second);
             }
 
             std::vector<size_t> strong_connections;
 
             for (const auto &pair : current_row)
             {
-                if (- pair.second >= EPSILON * max_value)
+                if (row == pair.first)
+                    continue;
+
+                if (std::abs(pair.second) >= EPSILON * max_value)
                     strong_connections.push_back(pair.first);
             }
 
@@ -143,7 +146,7 @@ class RestrictionOperator
         }
 
 
-        void select_coarse_nodes(CSRMatrix &current_matrix, std::vector<unsigned char> &coarse_mask)
+        size_t select_coarse_nodes(CSRMatrix &current_matrix, std::vector<unsigned char> &coarse_mask)
         {
             const size_t n_nodes = current_matrix.rows();
             std::vector<std::vector<size_t>> strong_connections(coarse_mask.size());
@@ -153,22 +156,25 @@ class RestrictionOperator
             size_t index = getRandomInit(n_nodes);
             //bool finished = false;
 
-            while(coarse_mask.at(index) & 0x0F)     // I do this in order to use only a variable
+            size_t counter_fine = 0;
+
+            while(coarse_mask.at(index) & 0x3F)     // I do this in order to use only a variable
             {
                 coarse_mask.at(index) = 0;
 
                 for (const auto &connection : strong_connections.at(index))
                 {
-                    if (coarse_mask.at(connection) & 0x0F)
+                    if (coarse_mask.at(connection) & 0x3F)
                     {
-                        coarse_mask.at(connection) |= 0xF0;     // Set state as visited
-                        coarse_mask.at(connection) &= 0xF0;     // Set the number of strong con. to 0
+                        coarse_mask.at(connection) |= 0xC0;     // Set state as fine
+                        coarse_mask.at(connection) &= 0xC0;     // Set the number of strong con. to 0
+                        counter_fine++;
 
                         for (const auto &second_connection : strong_connections.at(connection))
                         {
-                            if (coarse_mask.at(second_connection) & 0x0F)
+                            if (coarse_mask.at(second_connection) & 0x3F)
                             {
-                                coarse_mask.at(second_connection) += 1;
+                                coarse_mask.at(second_connection) += 2;
                             }
                         }
                     }
@@ -177,13 +183,167 @@ class RestrictionOperator
                 signed char max = -1;
                 for (size_t i = 0; i < n_nodes; ++i)
                 {
-                    if ((signed char)(coarse_mask.at(i) & 0x0F))
+                    if ((signed char)(coarse_mask.at(i) & 0x3F))
                     {
-                        max = (signed char)(coarse_mask.at(i) & 0x0F);
+                        max = (signed char)(coarse_mask.at(i) & 0x3F);
                         index = i;
                     }
                 }
             }
+
+            //return the number of coarse nodes
+            return coarse_mask.size() - counter_fine;
+
+        }
+
+
+        void build_component_mask
+        (
+            const std::vector<unsigned char> &coarse_mask, 
+            std::vector<size_t> &component_mask,
+            const size_t &num_coarse_nodes
+        )
+        {
+            component_mask.resize(num_coarse_nodes);
+
+            size_t index = 0;
+            
+            for (size_t i = 0; i < coarse_mask.size(); ++i)
+            {
+                // Check if the ith node is fine
+                if (coarse_mask.at(i) & 0xC0)
+                    continue;
+
+                component_mask.at(index) = i; 
+            }
+        }
+
+        void build_prolongation_matrix
+        (
+            CSRMatrix &current_matrix,
+            std::unique_ptr<CSRMatrix> &P,
+            std::vector<size_t> &component_mask,
+            std::vector<unsigned char> &coarse_mask
+        )
+        {
+            Matrix temporary_p_matrix(current_matrix.rows(), component_mask.size());
+            
+            for (size_t i = 0; i < current_matrix.rows(); ++i)
+            {
+                if (!(coarse_mask.at(i) & 0xC0))
+                {
+                    temporary_p_matrix.data().at(i)[i] = 1.0;
+                    continue;
+                }
+
+                double alpha_num = 0.0;
+                for (const auto &val : current_matrix.nonZerosInRow(i))
+                {
+                    if (val.first == i)
+                        continue;
+
+                    alpha_num += val.second;
+                }
+
+                double alpha_denum = 0.0;
+                const auto strong_connections = strong_connections_in_row(current_matrix, i); 
+                for (const auto &index : strong_connections)
+                {
+                    if (coarse_mask.at(index) & 0xC0)   // If the node is fine
+                        continue;
+                    
+                    alpha_denum += current_matrix.coeff(i, index);
+                }
+
+                double alpha = alpha_num / alpha_denum;
+                
+                //double aii = current_matrix.coeff(i, i);
+                double sum = 0.0;   //normalization constant
+
+                for (const auto &index : strong_connections)
+                {
+                    if (coarse_mask.at(index) & 0xC0)
+                        continue;
+
+
+                    //temporary_p_matrix.data().at(i)[index] = 
+                    //    alpha * current_matrix.coeff(i, index) / aii;
+                    sum += alpha * current_matrix.coeff(i, index);
+                }
+
+                for (const auto &index : strong_connections)
+                {
+                    if (coarse_mask.at(index) & 0xC0)
+                        continue;
+
+
+                    temporary_p_matrix.data().at(i)[index] = 
+                        alpha * current_matrix.coeff(i, index) / (-sum);  
+                }
+
+            }
+
+            temporary_p_matrix.count_non_zeros();
+            
+            P = std::make_unique<CSRMatrix>(temporary_p_matrix);
+            P->copy_from(temporary_p_matrix);
+        }
+
+
+        void build_coarse_matrix
+        (
+            CSRMatrix &current_matrix,
+            CSRMatrix &P,
+            std::unique_ptr<CSRMatrix> &coarse_matrix
+        )
+        {
+            //Matrix PtA_temp(P.cols(), P.rows());
+            //// Since A is symmetric cols of A are equal to cols of A
+//
+            //for (size_t j = 0; j < current_matrix.rows(); ++j)
+            //{
+            //    const auto &Aj_column = current_matrix.nonZerosInRow(j);
+            //    for (size_t i = 0; i < P.cols(); ++i)
+            //    {
+            //        double sum = 0.0;
+            //        
+            //        for (const auto &non_zero_entry : Aj_column)
+            //        {
+            //            sum += non_zero_entry.second * P.coeff(non_zero_entry.first, i);
+            //        }
+//
+            //        if (1e-10 < std::abs(sum))       // Chck if it's zero
+            //            PtA_temp.data().at(i)[j] = sum;
+            //    }
+            //}
+
+            //PtA_temp.count_non_zeros();
+
+            //CSRMatrix PtA(PtA_temp);
+            //PtA.copy_from(PtA_temp);
+
+            //Matrix Ac(P.cols(), P.cols());
+//
+            //for (size_t i = 0; i < Ac.rows(); ++i)
+            //{
+            //    const auto &PtAi_row = PtA.nonZerosInRow(i);
+//
+            //    for (size_t j = 0; j < Ac.cols(); ++j)
+            //    {
+            //        double sum = 0.0;
+//
+            //        for (const auto &non_zero_entry : PtAi_row)
+            //        {
+            //            sum += non_zero_entry.second * P.coeff(non_zero_entry.first, j);
+            //        }
+            //        if (1e-10 < std::abs(sum))       // Chck if it's zero
+            //            Ac.data().at(i)[j] = sum;
+            //    }
+            //}
+            //Ac.count_non_zeros();
+
+            //coarse_matrix = std::make_unique<CSRMatrix>(Ac);
+            //coarse_matrix->copy_from(Ac);
 
         }
         
