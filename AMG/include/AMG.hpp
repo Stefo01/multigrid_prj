@@ -56,6 +56,7 @@ class AMG
         void print_mask_nodes(int level);
         bool is_connected(int i, int j, int level);
         double compute_residual(int level);
+        void initialization();
 
         std::vector<std::vector<bool>> get_strong_connections(int level) {
             return tot_strong_connections[level];
@@ -83,7 +84,7 @@ class AMG
         std::vector<std::unique_ptr<CSRMatrix>>     levels_matrix;              // for each level, we'll save also the solution matrix                
         std::vector<std::vector<double>>            x_levels;                   // for each level, we'll save the solution vector
         std::vector<std::vector<double>>            rhs;
-        std::vector<std::vector<std::vector<double>>> P_matrices;
+        std::vector<std::unique_ptr<CSRMatrix>>     P_matrices;
 };
 
 
@@ -310,6 +311,7 @@ class RestrictionOperator
             // Since A is symmetric cols of A are equal to cols of A
 
             // j from 0 to N
+            #pragma omp parallel for default(none) shared(PtA_temp, current_matrix, P)
             for (size_t j = 0; j < current_matrix.rows(); ++j)
             {
                 const auto &Aj_column = current_matrix.nonZerosInRow(j);
@@ -340,6 +342,7 @@ class RestrictionOperator
             Matrix Ac(P.cols(), P.cols());
             
             // i from 0 to Nc
+            #pragma omp parallel for default(none) shared(Ac, PtA, P)
             for (size_t i = 0; i < Ac.rows(); ++i)
             {
                 const auto &PtAi_row = PtA.nonZerosInRow(i);

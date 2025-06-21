@@ -2,7 +2,7 @@
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
 #include "AMG.hpp"
-
+#include "FEM.hpp"
 
 
 
@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     //ThirdOrderFE fe;
 
     TriangularMesh mesh(fe);
-    mesh.import_from_msh("../mesh/mesh1.msh");
+    mesh.import_from_msh("../mesh/mesh2.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " dofs and "
         << mesh.n_elements() << " elements." << std::endl;

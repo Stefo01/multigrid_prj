@@ -1,6 +1,7 @@
 #include "CSRMatrix.hpp"
 #include "Utilities.hpp"
 #include "AMG.hpp"
+#include "FEM.hpp"
 
 std::ostream &operator<<(std::ostream &os, const std::vector<double> &vec)
 {
@@ -18,7 +19,7 @@ int main()
 {    
     LinearFE fe;
     TriangularMesh mesh(fe);
-    mesh.import_from_msh("../mesh/mesh-corner.msh");
+    mesh.import_from_msh("../mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " nodes and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -115,53 +116,19 @@ int main()
 
     }
     std::cout << "Matrix created succesfully!" << std::endl;
-    //A_temp.print();
+    std::cout << "----------------------------------" << std::endl;
     std::cout << "Counting non zero elements..." << std::endl;
     A_temp.count_non_zeros();
-    //B_temp.count_non_zeros();
     std::cout << "There are " << A_temp.non_zeros() << " non zero elements." << std::endl;
-    
-    std::cout << "Compressing the matrix..." << std::endl;
-    CSRMatrix A(A_temp);
-    //CSRMatrix B(B_temp);
-    A.copy_from(A_temp);
-
+    std::cout << "----------------------------------" << std::endl;
+    std::cout << "Init the AMG" << std::endl;
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
-
-    AMG amg(A_temp, sol, 1, rhs);
+    AMG amg(A_temp, sol, 5, rhs);
     amg.apply_AMG();
     //amg.print_mask_nodes(0);
-
-    /*
-    for (int l = 0; l < 3; ++l) {
-        amg.print_mask_nodes(l);
-}*/
-
-    // std::cout << "Strong connections: " << amg.get_strong_connections(1).size() << std::endl;
-    //std::vector<bool> result = AMGV4<double>(A); // Specify template type
-    // std::cout << "Result: ";
-    // for (const auto &val : result) {
-    //     std::cout << val << " ";
-    // }
-    // std::cout << std::endl;
-
-    //B.copy_from(B_temp);
-
-    // Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
-
-    // std::cout << sol << std::endl;
-    // std::cout << " " << std::endl;
-    // //A.print();
-    // //B.print();
-
-    // for (int i = 0; i < 5000; ++i)
-    // {
-    //    sol * GS;
-    // }
-
+    std::cout << "----------------------------------" << std::endl;
     mesh.export_to_vtu(amg.get_solution());
-
-    //std::cout << sol << std::endl;
+    std::cout << "Solution correctly saved in output.vtu" << std::endl;
 
     return 0;
 }
