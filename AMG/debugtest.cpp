@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     //ThirdOrderFE fe;
 
     TriangularMesh mesh(fe);
-    mesh.import_from_msh("../mesh/mesh2.msh");
+    mesh.import_from_msh("../mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " dofs and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -144,6 +144,7 @@ int main(int argc, char **argv)
     //    sol * GS;
     //}
 
+    // 1 level amg
     RestrictionOperator R;
     std::vector<unsigned char> coarse_mask(sol.size(), 0);
     size_t num_coarse = R.select_coarse_nodes(A, coarse_mask);
@@ -151,27 +152,54 @@ int main(int argc, char **argv)
     std::cout << "There are " << num_coarse << " coarse nodes!" << std::endl;
 
     std::vector<size_t> component_mask;
-    R.build_component_mask(coarse_mask, component_mask, num_coarse);
+    std::map<size_t, size_t> reversed_component_mask;
+    R.build_component_mask(coarse_mask, component_mask, num_coarse, reversed_component_mask);
 
     std::unique_ptr<CSRMatrix> P;
-    R.build_prolongation_matrix(A, P, component_mask, coarse_mask);
+    R.build_prolongation_matrix(A, P, component_mask, coarse_mask, reversed_component_mask);
+
+    std::cout << "P size : " << (P->rows()) << " x " << (P->cols()) << std::endl;
 
     std::unique_ptr<CSRMatrix> Ac;
     R.build_coarse_matrix(A, *P, Ac);
 
+    std::vector<double> sol1(Ac->rows());
+
+    // 2 level amg
+    std::vector<unsigned char> coarse_mask2(sol1.size(), 0);
+    size_t num_coarse2 = R.select_coarse_nodes(*Ac, coarse_mask2);
+    
+    std::cout << "There are " << num_coarse2 << " coarse nodes!" << std::endl;
+
+
     for (size_t i = 0; i < sol.size(); ++i)
     {
-        sol.at(i) = (coarse_mask.at(i) & 0xC0) ? 1.0 : 0.0;
-
-        //std::cout << "[ ";
-        //for (const auto &val : P->nonZerosInRow(i))
-        //{
-        //    std::cout << val.first << " : " << val.second << " ";
-        //}
-        //std::cout << "]" << std::endl;
+        //sol.at(i) = (coarse_mask.at(i) & 0xC0) ? 1.0 : 0.0;
+        if (coarse_mask.at(i) & 0xC0)
+        {
+            sol.at(i) = -1.0;
+        }
+        else
+        {
+            if (coarse_mask2.at(reversed_component_mask[i]) & 0xC0)
+                sol.at(i) = 1.0;
+            else
+                sol.at(i) = 0.0;
+        }
     }
 
     mesh.export_to_vtu(sol);
+
+
+    //for (size_t i = 0; i < Ac->rows(); ++i)
+    //{
+    //    std::cout << "[ ";
+    //    for (const auto &val : Ac->nonZerosInRow(i))
+    //    {
+    //        std::cout << val.first << " : " << val.second << " ";
+    //    }
+    //    std::cout << "]" << std::endl;
+    //}
 
 
     return 0;

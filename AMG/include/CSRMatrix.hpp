@@ -94,8 +94,8 @@ class CSRMatrix
         void copy_from(Matrix &A);   
         const double coeff(const size_t &row, const size_t &col);
         const std::vector< std::pair<size_t, double> > nonZerosInRow(const size_t &row);
-        const size_t rows(){ return mask_amg[mask_amg.size() - 1].size(); }
-        const size_t cols(){ return mask_amg[mask_amg.size() - 1].size(); }
+        const size_t rows(){ return n_rows; }
+        const size_t cols(){ return n_cols; }
 
         void print()
         {

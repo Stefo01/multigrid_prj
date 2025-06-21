@@ -201,7 +201,8 @@ class RestrictionOperator
         (
             const std::vector<unsigned char> &coarse_mask, 
             std::vector<size_t> &component_mask,
-            const size_t &num_coarse_nodes
+            const size_t &num_coarse_nodes,
+            std::map<size_t, size_t> &reversed_component_mask
         )
         {
             component_mask.resize(num_coarse_nodes);
@@ -214,16 +215,22 @@ class RestrictionOperator
                 if (coarse_mask.at(i) & 0xC0)
                     continue;
 
-                component_mask.at(index) = i; 
+                component_mask.at(index) = i;
+                reversed_component_mask[i] = index;
+
+                ++index;
             }
         }
+
+
 
         void build_prolongation_matrix
         (
             CSRMatrix &current_matrix,
             std::unique_ptr<CSRMatrix> &P,
             std::vector<size_t> &component_mask,
-            std::vector<unsigned char> &coarse_mask
+            std::vector<unsigned char> &coarse_mask,
+            std::map<size_t, size_t> &reversed_component_mask
         )
         {
             Matrix temporary_p_matrix(current_matrix.rows(), component_mask.size());
@@ -232,7 +239,7 @@ class RestrictionOperator
             {
                 if (!(coarse_mask.at(i) & 0xC0))
                 {
-                    temporary_p_matrix.data().at(i)[i] = 1.0;
+                    temporary_p_matrix.data().at(i)[reversed_component_mask[i]] = 1.0;
                     continue;
                 }
 
@@ -276,13 +283,13 @@ class RestrictionOperator
                     if (coarse_mask.at(index) & 0xC0)
                         continue;
 
-
-                    temporary_p_matrix.data().at(i)[index] = 
+                    //std::cout << "Index : " << index << " -> " 
+                    //    << reversed_component_mask[index] << std::endl;
+                    temporary_p_matrix.data().at(i)[reversed_component_mask[index]] = 
                         alpha * current_matrix.coeff(i, index) / (-sum);  
                 }
 
             }
-
             temporary_p_matrix.count_non_zeros();
             
             P = std::make_unique<CSRMatrix>(temporary_p_matrix);
@@ -297,53 +304,59 @@ class RestrictionOperator
             std::unique_ptr<CSRMatrix> &coarse_matrix
         )
         {
-            //Matrix PtA_temp(P.cols(), P.rows());
-            //// Since A is symmetric cols of A are equal to cols of A
-//
-            //for (size_t j = 0; j < current_matrix.rows(); ++j)
-            //{
-            //    const auto &Aj_column = current_matrix.nonZerosInRow(j);
-            //    for (size_t i = 0; i < P.cols(); ++i)
-            //    {
-            //        double sum = 0.0;
-            //        
-            //        for (const auto &non_zero_entry : Aj_column)
-            //        {
-            //            sum += non_zero_entry.second * P.coeff(non_zero_entry.first, i);
-            //        }
-//
-            //        if (1e-10 < std::abs(sum))       // Chck if it's zero
-            //            PtA_temp.data().at(i)[j] = sum;
-            //    }
-            //}
+            Matrix PtA_temp(P.cols(), P.rows());
+            // Since A is symmetric cols of A are equal to cols of A
 
-            //PtA_temp.count_non_zeros();
+            // j from 0 to N
+            for (size_t j = 0; j < current_matrix.rows(); ++j)
+            {
+                const auto &Aj_column = current_matrix.nonZerosInRow(j);
+                //std::cout << "Aj nnz = " << Aj_column.size() << std::endl;
+                // i from 0 to Nc
+                for (size_t i = 0; i < P.cols(); ++i)
+                {
+                    double sum = 0.0;
+                    
+                    for (const auto &non_zero_entry : Aj_column)
+                    {
+                        sum += non_zero_entry.second * P.coeff(non_zero_entry.first, i);
+                    }
+                    //std::cout << "sum = " << sum << std::endl;
+                    //if (1e-10 < std::abs(sum))       // Chck if it's zero
+                        PtA_temp.data().at(i)[j] = sum;
+                }
+            }
 
-            //CSRMatrix PtA(PtA_temp);
-            //PtA.copy_from(PtA_temp);
+            PtA_temp.count_non_zeros();
+            //std::cout << "PtA non zeros : " << PtA_temp.non_zeros() << std::endl;
 
-            //Matrix Ac(P.cols(), P.cols());
-//
-            //for (size_t i = 0; i < Ac.rows(); ++i)
-            //{
-            //    const auto &PtAi_row = PtA.nonZerosInRow(i);
-//
-            //    for (size_t j = 0; j < Ac.cols(); ++j)
-            //    {
-            //        double sum = 0.0;
-//
-            //        for (const auto &non_zero_entry : PtAi_row)
-            //        {
-            //            sum += non_zero_entry.second * P.coeff(non_zero_entry.first, j);
-            //        }
-            //        if (1e-10 < std::abs(sum))       // Chck if it's zero
-            //            Ac.data().at(i)[j] = sum;
-            //    }
-            //}
-            //Ac.count_non_zeros();
+            CSRMatrix PtA(PtA_temp);
+            PtA.copy_from(PtA_temp);
 
-            //coarse_matrix = std::make_unique<CSRMatrix>(Ac);
-            //coarse_matrix->copy_from(Ac);
+            Matrix Ac(P.cols(), P.cols());
+            
+            // i from 0 to Nc
+            for (size_t i = 0; i < Ac.rows(); ++i)
+            {
+                const auto &PtAi_row = PtA.nonZerosInRow(i);
+
+                // j from 0 to Nc
+                for (size_t j = 0; j < Ac.cols(); ++j)
+                {
+                    double sum = 0.0;
+
+                    for (const auto &non_zero_entry : PtAi_row)
+                    {
+                        sum += non_zero_entry.second * P.coeff(non_zero_entry.first, j);
+                    }
+                    //if (1e-10 < std::abs(sum))       // Chck if it's zero
+                        Ac.data().at(i)[j] = sum;
+                }
+            }
+            Ac.count_non_zeros();
+
+            coarse_matrix = std::make_unique<CSRMatrix>(Ac);
+            coarse_matrix->copy_from(Ac);
 
         }
         
