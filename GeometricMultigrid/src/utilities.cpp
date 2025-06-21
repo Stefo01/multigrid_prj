@@ -141,17 +141,19 @@ void Utils::init_test_functions(std::function<double(const double, const double)
         [] (const double x, const double y) { return 0.; },
         [] (const double x, const double y) { return -5.0 * exp(x) * exp(-2.0 * y); }, 
         [] (const double x, const double y) { return exp(x) * exp(-2.0 * y); }, 
-        [] (const double x, const double y) { return -30.*(cos(30. * sqrt(x*x + y*y)) / sqrt(x*x + y*y) - 30.*sin(30. * sqrt(x*x + y*y)));}, 
-        [] (const double x, const double y) { return sin(30. * sqrt(x * x + y * y)); }
+        [] (const double x, const double y) { double r = std::sqrt(x * x + y * y); return r != 0.0 ? -30. * (std::cos(30. * r) / r - 30. * std::sin(30. * r)) : 0.0; }, 
+        [] (const double x, const double y) { return std::sin(30. * std::sqrt(x * x + y * y)); }
         // END
     };  
 
-    try{
-        f = functions_to_choose_to_test[i*2];
-        g = functions_to_choose_to_test[i*2 + 1];
-    }catch(std::exception&){
+    size_t max_index = functions_to_choose_to_test.size() / 2 - 1;
+    if (i < 0 || static_cast<size_t>(i) > max_index) {
         f = functions_to_choose_to_test[0];
         g = functions_to_choose_to_test[1];
+        std::cout << "Warning: Invalid test case index. Default test case selected.\n";
+    } else {
+        f = functions_to_choose_to_test[i * 2];
+        g = functions_to_choose_to_test[i * 2 + 1];
     }
 
 }
