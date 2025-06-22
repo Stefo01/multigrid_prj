@@ -24,11 +24,5 @@ You can find the instruction to run and execute AMG and GMG inside their readme:
 * [AMG](./AMG/README.md)
 * [GMG](./GeometricMultigrid/README.md)
 
-## License
-
-[MIT License](LICENSE) (or specify your license)
-
----
-
 **Contact:**  
 For questions or contributions, please open an issue or pull request.
