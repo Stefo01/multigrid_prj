@@ -375,10 +375,11 @@ class RestrictionOperator
         (
             const std::vector<double> &fine_rhs,
             CSRMatrix &P,
-            std::unique_ptr<std::vector<double>> &coarse_rhs
+            std::vector<double> &coarse_rhs,
+            std::vector<size_t> &component_mask
         )
         {
-            coarse_rhs = std::make_unique<std::vector<double>>(P.cols(), 0);
+            //coarse_rhs = std::make_unique<std::vector<double>>(P.cols(), 0);
             
             for (size_t j = 0; j < P.rows(); ++j)
             {
@@ -386,11 +387,58 @@ class RestrictionOperator
 
                 for (const auto &non_zero_entry : Pj_column)
                 {
-                    coarse_rhs->at(non_zero_entry.first) +=
+                    coarse_rhs.at(component_mask.at(non_zero_entry.first)) +=
                         non_zero_entry.second * fine_rhs.at(j);
                 }
             }
 
+        }
+
+        double compute_residual
+        (
+            CSRMatrix &A,
+            const std::vector<double> &x,
+            const std::vector<double> &rhs,
+            std::vector<double> &residual
+        )
+        {
+            double cumulative_squared_residual = 0.0;
+            for (size_t i = 0; i < A.rows(); ++i)
+            {
+                double Ax_i = 0.0;
+                for (const auto &val : A.nonZerosInRow(i))
+                {
+                    Ax_i += val.second * x.at(val.first);
+                }
+                Ax_i = rhs.at(i) - Ax_i;
+                residual.at(i) = Ax_i;
+                cumulative_squared_residual += Ax_i * Ax_i;
+            }
+            return std::sqrt(cumulative_squared_residual);
+        }
+
+        double compute_residual_with_mask
+        (
+            CSRMatrix &A,
+            const std::vector<double> &x,
+            const std::vector<double> &rhs,
+            std::vector<double> &residual
+        )
+        {
+            double cumulative_squared_residual = 0.0;
+            for (size_t i = 0; i < A.rows(); ++i)
+            {
+                size_t masked_i = A.component_mask.at(i);
+                double Ax_i = 0.0;
+                for (const auto &val : A.nonZerosInRow(i))
+                {
+                    Ax_i += val.second * x.at(A.component_mask.at(val.first));
+                }
+                Ax_i = rhs.at(masked_i) - Ax_i;
+                residual.at(masked_i) = Ax_i;
+                cumulative_squared_residual += Ax_i * Ax_i;
+            }
+            return std::sqrt(cumulative_squared_residual);
         }
         
 
@@ -401,3 +449,4 @@ class RestrictionOperator
 };
 
 #endif
+

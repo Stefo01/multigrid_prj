@@ -21,9 +21,10 @@
 
 template<class Vector>
 class SmootherClass{
-    public:
-
+    protected:
         std::function<void(std::vector<double> &)> apply_iteration_to_vec;
+
+    public:
 
         inline friend std::vector<double>& operator*(std::vector<double> &x_k, SmootherClass &B)
         {
@@ -69,7 +70,7 @@ class Gauss_Seidel_iteration : public SmootherClass<Vector>{
                         sum += element.second * sol.at(m_A.component_mask.at(element.first));
                     }
                 }
-                sol[masked_i] = (this->b[i] - sum) / m_A.coeff(i,i);
+                sol[masked_i] = (this->b[masked_i] - sum) / m_A.coeff(i,i);
             }
         }
 

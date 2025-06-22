@@ -128,12 +128,6 @@ int main(int argc, char **argv)
     //B_temp.count_non_zeros();
     std::cout << "There are " << A_temp.non_zeros() << " non zero elements." << std::endl;
     
-    std::cout << "Compressing the matrix..." << std::endl;
-    //CSRMatrix A(A_temp);
-    //CSRMatrix B(B_temp);
-    //A.copy_from(A_temp);
-
-    std::cout << "Matrix compressed successfully!"<< std::endl;
 
     std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes(), -1.0);  
 
@@ -144,6 +138,7 @@ int main(int argc, char **argv)
 
 
 
+    // AMG initialization
     std::vector<std::unique_ptr<CSRMatrix>> system_matrices;
     std::vector<std::unique_ptr<CSRMatrix>> prolongation_matrices;
     int amg_levels = 2;
@@ -154,7 +149,8 @@ int main(int argc, char **argv)
     RestrictionOperator R;
 
     std::vector<std::unique_ptr<std::vector<double>>> system_rhs;
-    system_rhs.push_back(std::move(rhs));
+    //std::unique_ptr<std::vector<double>> temp_rhs = std::make_unique<std::vector<double>>(rhs->size());
+    //system_rhs.push_back(std::move(temp_rhs));
 
     for (int level = 1; level < amg_levels; ++level)
     {
@@ -190,25 +186,64 @@ int main(int argc, char **argv)
         std::unique_ptr<CSRMatrix> Ac;
         R.build_coarse_matrix(*system_matrices.at(level - 1), *P, Ac);
 
-        std::unique_ptr<std::vector<double>> rhs_temp;
-        R.build_coarse_rhs(*system_rhs.at(level - 1), *P, rhs_temp);
+        //std::unique_ptr<std::vector<double>> rhs_temp = 
+        //    std::make_unique<std::vector<double>>(P->cols(), 0.0);
+
+        //R.build_coarse_rhs(*system_rhs.at(level - 1), *P, *rhs_temp);
 
         Ac->component_mask = component_mask;
 
         prolongation_matrices.push_back(std::move(P));
         system_matrices.push_back(std::move(Ac));
-        system_rhs.push_back(std::move(rhs_temp));
+        //system_rhs.push_back(std::move(rhs_temp));
     }
 
-    Gauss_Seidel_iteration< std::vector<double> > GS(*system_matrices.at(1), *system_rhs.at(1));
- 
+    // Pre-smoothing
+    //Gauss_Seidel_iteration<std::vector<double>> GS_pre_smooth(*system_matrices.at(0), *rhs);
+//
+    //for (int i = 0; i < 10; ++i)
+    //{
+    //    sol * GS_pre_smooth;
+    //}
 
-    for (int i = 0; i < 500; ++i)
+    // AMG V-cycle
+    //size_t n_iter = 1;
+    //for (size_t current_iter = 0; current_iter < n_iter; ++current_iter)
+    //{
+    //    double initial_residual =
+    //        R.compute_residual(*system_matrices.at(0), sol, *rhs, *system_rhs.at(0));
+    //    
+    //    std::cout << "Initial residual on fine level at iteration " << (current_iter + 1)
+    //        << " is " << initial_residual << std::endl;
+//
+    //    Gauss_Seidel_iteration<std::vector<double>> GS1D(*system_matrices.at(0), *system_rhs.at(0));
+//
+    //    for (int i = 0; i < 5; ++i)
+    //    {
+//
+    //    }
+    //}
+
+    
+
+    std::vector<double> coarse_rhs(rhs->size());
+    std::vector<double> coarse_residual(rhs->size());
+    R.build_coarse_rhs(*rhs, *prolongation_matrices.at(0), coarse_rhs, system_matrices.at(1)->component_mask);
+
+    Gauss_Seidel_iteration<std::vector<double>> GS(*system_matrices.at(1), coarse_rhs);
+
+    double res = R.compute_residual_with_mask(*system_matrices.at(1), sol, coarse_rhs, coarse_residual);
+
+    std::cout << res << std::endl;
+
+    for (int i = 0; i < 5000; ++ i)
     {
         sol * GS;
     }
 
+    res = R.compute_residual_with_mask(*system_matrices.at(1), sol, coarse_rhs, coarse_residual);
 
+    std::cout << res << std::endl;
 
     mesh.export_to_vtu(sol);
 
