@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     //ThirdOrderFE fe;
 
     TriangularMesh mesh(fe);
-    mesh.import_from_msh("../mesh/mesh2.msh");
+    mesh.import_from_msh("../mesh/mesh1.msh");
     //mesh.export_to_vtu();
     std::cout << "Mesh imported! There are " << mesh.n_nodes() << " dofs and "
         << mesh.n_elements() << " elements." << std::endl;
@@ -30,7 +30,9 @@ int main(int argc, char **argv)
 
     std::cout << "Initializing the matrix" << std::endl;
     Matrix A_temp(mesh.n_nodes() - mesh.n_b_nodes(), mesh.n_nodes() - mesh.n_b_nodes());
-    std::vector<double> rhs(mesh.n_nodes() - mesh.n_b_nodes());
+    std::unique_ptr<std::vector<double>> rhs = 
+        std::make_unique<std::vector<double>>(mesh.n_nodes() - mesh.n_b_nodes());
+
 
     
     for (const auto &element : mesh.element_iterators())
@@ -78,7 +80,7 @@ int main(int argc, char **argv)
 
                 for (size_t q = 0; q < quadrature_points.size(); ++q)
                 {
-                    rhs.at(local_dofs.at(i).set_index) += 
+                    rhs->at(local_dofs.at(i).set_index) += 
                         forcing_term(local_dofs.at(i).x, local_dofs.at(i).y) *
                         fe.get_basis_function(i)(quadrature_points.at(q)) * 
                         quadrature_weights.at(q);
@@ -102,7 +104,7 @@ int main(int argc, char **argv)
                         {
                             for (size_t q = 0; q < quadrature_points.size(); ++q)
                             {
-                                rhs.at(local_dofs.at(i).set_index) -=
+                                rhs->at(local_dofs.at(i).set_index) -=
                                     boundary_function(local_dofs.at(j).x,
                                         local_dofs.at(j).y) * 
                                     alpha(quadrature_points.at(q).x, quadrature_points.at(q).y) *
@@ -133,28 +135,26 @@ int main(int argc, char **argv)
 
     std::cout << "Matrix compressed successfully!"<< std::endl;
 
-    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes());  
+    std::vector<double> sol(mesh.n_nodes() - mesh.n_b_nodes(), -1.0);  
 
-    //Gauss_Seidel_iteration< std::vector<double> > GS(A, rhs);
 
     std::cout << " " << std::endl;
 
-    //for (int i = 0; i < 5000; ++i)
-    //{
-    //    sol * GS;
-    //}
 
 
 
 
     std::vector<std::unique_ptr<CSRMatrix>> system_matrices;
     std::vector<std::unique_ptr<CSRMatrix>> prolongation_matrices;
-    int amg_levels = 4;
+    int amg_levels = 2;
     std::unique_ptr<CSRMatrix> tmp = std::make_unique<CSRMatrix>(A_temp);
     tmp->copy_from(A_temp);
 
     system_matrices.push_back(std::move(tmp));
     RestrictionOperator R;
+
+    std::vector<std::unique_ptr<std::vector<double>>> system_rhs;
+    system_rhs.push_back(std::move(rhs));
 
     for (int level = 1; level < amg_levels; ++level)
     {
@@ -167,6 +167,15 @@ int main(int argc, char **argv)
         std::vector<size_t> component_mask;
         std::map<size_t, size_t> reversed_component_mask;
         R.build_component_mask(coarse_mask, component_mask, num_coarse, reversed_component_mask);
+
+        if (system_matrices.at(level - 1)->component_mask.size() > 0)
+        {
+            // Here we transform the component mask into a global component mask
+            for (auto &component : component_mask)
+            {
+                component = system_matrices.at(level - 1)->component_mask.at(component);
+            }
+        }
 
         std::unique_ptr<CSRMatrix> P;
         R.build_prolongation_matrix
@@ -181,23 +190,27 @@ int main(int argc, char **argv)
         std::unique_ptr<CSRMatrix> Ac;
         R.build_coarse_matrix(*system_matrices.at(level - 1), *P, Ac);
 
+        std::unique_ptr<std::vector<double>> rhs_temp;
+        R.build_coarse_rhs(*system_rhs.at(level - 1), *P, rhs_temp);
+
+        Ac->component_mask = component_mask;
+
         prolongation_matrices.push_back(std::move(P));
         system_matrices.push_back(std::move(Ac));
+        system_rhs.push_back(std::move(rhs_temp));
     }
 
+    Gauss_Seidel_iteration< std::vector<double> > GS(*system_matrices.at(1), *system_rhs.at(1));
+ 
+
+    for (int i = 0; i < 500; ++i)
+    {
+        sol * GS;
+    }
+
+
+
     mesh.export_to_vtu(sol);
-
-
-    //for (size_t i = 0; i < Ac->rows(); ++i)
-    //{
-    //    std::cout << "[ ";
-    //    for (const auto &val : Ac->nonZerosInRow(i))
-    //    {
-    //        std::cout << val.first << " : " << val.second << " ";
-    //    }
-    //    std::cout << "]" << std::endl;
-    //}
-
 
     return 0;
 }

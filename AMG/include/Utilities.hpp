@@ -23,7 +23,7 @@ template<class Vector>
 class SmootherClass{
     public:
 
-        virtual void apply_iteration_to_vec(std::vector<double> &sol) = 0;
+        std::function<void(std::vector<double> &)> apply_iteration_to_vec;
 
         inline friend std::vector<double>& operator*(std::vector<double> &x_k, SmootherClass &B)
         {
@@ -38,12 +38,12 @@ class Gauss_Seidel_iteration : public SmootherClass<Vector>{
     private:    
         CSRMatrix &m_A;
         Vector &b; // Ax = b
-    public:
 
-        Gauss_Seidel_iteration(CSRMatrix &A, Vector &f) : m_A(A), b(f) {}
-        
-        void apply_iteration_to_vec(std::vector<double> &sol) override{
-            for(size_t i = 0; i < m_A.rows(); i++){
+
+        void apply_iteration_to_vec_no_mask(std::vector<double> &sol)
+        {
+            for(size_t i = 0; i < m_A.rows(); i++)
+            {
                 double sum = 0;
                 for (const auto &element : m_A.nonZerosInRow(i))
                 {
@@ -55,6 +55,45 @@ class Gauss_Seidel_iteration : public SmootherClass<Vector>{
                 sol[i] = (this->b[i] - sum) / m_A.coeff(i,i);
             }
         }
+
+        void apply_iteration_to_vec_with_mask(std::vector<double> &sol)
+        {
+            for(size_t i = 0; i < m_A.rows(); i++)
+            {
+                size_t masked_i = m_A.component_mask.at(i);
+                double sum = 0;
+                for (const auto &element : m_A.nonZerosInRow(i))
+                {
+                    if (element.first != i)
+                    {
+                        sum += element.second * sol.at(m_A.component_mask.at(element.first));
+                    }
+                }
+                sol[masked_i] = (this->b[i] - sum) / m_A.coeff(i,i);
+            }
+        }
+
+        
+
+    public:
+
+        Gauss_Seidel_iteration(CSRMatrix &A, Vector &f) : m_A(A), b(f) 
+        {
+            if (0 == A.component_mask.size())
+                this->apply_iteration_to_vec = [this](std::vector<double> &sol)
+                {
+                    this->apply_iteration_to_vec_no_mask(sol);
+                };
+            
+            else
+                this->apply_iteration_to_vec = [this](std::vector<double> &sol)
+                {
+                    this->apply_iteration_to_vec_with_mask(sol);
+                };
+
+        }
+        
+        
 };
 
 const double boundary_function(const double &x, const double &y);

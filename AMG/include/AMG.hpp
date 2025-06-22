@@ -289,7 +289,7 @@ class RestrictionOperator
                     //std::cout << "Index : " << index << " -> " 
                     //    << reversed_component_mask[index] << std::endl;
                     temporary_p_matrix.data().at(i)[reversed_component_mask[index]] = 
-                        alpha * current_matrix.coeff(i, index) / (-sum);  
+                        alpha * current_matrix.coeff(i, index) / (sum);  
                 }
 
             }
@@ -366,6 +366,31 @@ class RestrictionOperator
             coarse_matrix = std::make_unique<CSRMatrix>(Ac);
             coarse_matrix->copy_from(Ac);
             //std::cout << "Matrix compressed" << std::endl;
+        }
+
+
+
+
+        void build_coarse_rhs
+        (
+            const std::vector<double> &fine_rhs,
+            CSRMatrix &P,
+            std::unique_ptr<std::vector<double>> &coarse_rhs
+        )
+        {
+            coarse_rhs = std::make_unique<std::vector<double>>(P.cols(), 0);
+            
+            for (size_t j = 0; j < P.rows(); ++j)
+            {
+                const auto &Pj_column = P.nonZerosInRow(j);
+
+                for (const auto &non_zero_entry : Pj_column)
+                {
+                    coarse_rhs->at(non_zero_entry.first) +=
+                        non_zero_entry.second * fine_rhs.at(j);
+                }
+            }
+
         }
         
 
