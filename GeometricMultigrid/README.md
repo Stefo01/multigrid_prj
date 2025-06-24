@@ -109,7 +109,7 @@ After that, navigate to the folder WebInterface and start the local php server:
 
 ```bash
 GeometricMultigrid $ cd WebInterface
-GeometricMultigrid $ php -S localhost:8000
+GeometricMultigrid $ php -S localhost:8000/home.php
 ```
 
 Then access the interface via browser at the url: http://localhost:8000/home.php
